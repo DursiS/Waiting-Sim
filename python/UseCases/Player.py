@@ -11,7 +11,7 @@ class Player:
     station_name: str
     station_id: int
     time_waited: timedelta
-    stations_visited: dict[str, bool]Pla
+    stations_visited: dict[str, bool]
 
     def __init__(
         self, name: str, starting_station: Station = Station("Coinflip Cove")
