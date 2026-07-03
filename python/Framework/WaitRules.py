@@ -39,6 +39,6 @@ class WaitRules:
         """Return dt."""
         return self.dt
 
-    def set_dt(self, dt: timedelta) -> None:
-        """Set dt."""
-        self.dt = dt
+    def set_rule(self, name: str, distribution: Callable) -> None:
+        """Set the distribution for station <name>."""
+        self._rule_map[name] = distribution
