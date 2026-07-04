@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class AdapterGateway(ABC):
     """An interface to decouple Adapter and Business logic."""
 
