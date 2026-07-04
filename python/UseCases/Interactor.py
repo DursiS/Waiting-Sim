@@ -1,18 +1,27 @@
 from Entities import Station
-from UseCases import WaitRulesGateway
+from UseCases.AdapterGateway import AdapterGateway
+from UseCases.WaitRulesGateway import WaitRulesGateway
 from UseCases.Player import Player
 
 
 class Interactor:
-    gateway: WaitRulesGateway
+    """Orchestrates business logic"""
 
-    def __init__(self, gateway: WaitRulesGateway) -> None:
-        self.gateway = gateway
+    _wr_gateway: WaitRulesGateway
+    _ad_gateway: AdapterGateway
 
-    def new_game(self, name: str, start: Station = Station("Coinflip Cove")) -> None:
+    def __init__(
+        self, wr_gateway: WaitRulesGateway, ad_gateway: AdapterGateway
+    ) -> None:
+        self._wr_gateway = wr_gateway
+        self._ad_gateway = ad_gateway
+
+    def execute_new_game(self, name: str, starting_station: Station) -> None:
         """Orchestrate a single game."""
-        new_player = Player(name=name, starting_station=start)
-        wait_times = self.station_wait_times(start)
+        player = Player(
+            name=name,
+            starting_station=starting_station,
+        )
 
     def station_wait_times(self, station: Station) -> dict[str, float]:
         """Return a dictionary mapping adjacent stations to their wait-time."""
