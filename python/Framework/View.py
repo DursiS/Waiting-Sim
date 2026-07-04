@@ -42,29 +42,35 @@ class View:
             return
         self._busy = True
         try:
-            self._controller.handle_new_game()
+            name = self.prompt_for_name()
+            station_id = self.prompt_for_station()
+            self._controller.handle_new_game(name, station_id)
         finally:
             self._busy = False
 
-    # def on_trial_selected(self, event: tk.Event) -> None:
-    #     """Action Listener for trial"""
-    #     if self._busy:
-    #         return
-    #     self._busy = True
-    #     try:
-    #         self._controller.handle_trial()
-    #     finally:
-    #         self._busy = False
-    #
-    # def on_simulation_selected(self, event: tk.Event) -> None:
-    #     """Action Listener for simulation"""
-    #     if self._busy:
-    #         return
-    #     self._busy = True
-    #     try:
-    #         self._controller.handle_simulation()
-    #     finally:
-    #         self._busy = False
+    def prompt_for_name(self) -> str:
+        """Prompt for a player's name."""
+        try:
+            result = input("Name: ")
+        except ValueError:
+            result = self.prompt_for_name()
+        return result
+
+    def prompt_for_station(self) -> int:
+        """Prompt for a starting station id."""
+        try:
+            result = int(input("Starting station id: "))
+        except ValueError:
+            result = self.prompt_for_station()
+        return result
+
+    def prompt_travel_choice(self) -> int:
+        """Prompt for the next station id to travel to."""
+        try:
+            result = int(input("Travel to station id: "))
+        except ValueError:
+            result = self.prompt_travel_choice()
+        return result
 
 
 if __name__ == "__main__":
