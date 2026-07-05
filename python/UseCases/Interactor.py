@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from Entities import Station
-from UseCases.AdapterGateway import AdapterGateway
+
+from UseCases.PresenterGateway import PresenterGateway
 from UseCases.WaitRulesGateway import WaitRulesGateway
 from UseCases.Player import Player
 
@@ -7,14 +10,14 @@ from UseCases.Player import Player
 class Interactor:
     """Orchestrates business logic"""
 
-    _wr_gateway: WaitRulesGateway
-    _ad_gateway: AdapterGateway
+    _wait_rules: WaitRulesGateway
+    _presenter: PresenterGateway
 
     def __init__(
-        self, wr_gateway: WaitRulesGateway, ad_gateway: AdapterGateway
+        self, wait_rules: WaitRulesGateway, presenter: PresenterGateway
     ) -> None:
-        self._wr_gateway = wr_gateway
-        self._ad_gateway = ad_gateway
+        self._wait_rules = wait_rules
+        self._presenter = presenter
 
     def execute_new_game(self, name: str, starting_station: Station) -> None:
         """Orchestrate a single game."""
@@ -22,10 +25,36 @@ class Interactor:
             name=name,
             starting_station=starting_station,
         )
+        E_t = self.get_expected_wait_times(player)
+        self._presenter.say_expected_times(E_t)
 
-    def station_wait_times(self, station: Station) -> dict[str, float]:
-        """Return a dictionary mapping adjacent stations to their wait-time."""
-        result = {}
-        if station["N"]:
-            pass
-        pass
+        t = self.get_wait_times(player)
+        self._presenter.say_sequenced_wait_times(t)
+        self._presenter.say_wait_time_metrics(t)
+        t_waited = player.wait(t)
+        new_station = self._presenter.prompt_where_to_move()
+        self._wait_rules[new_station.id]["times_visited"] += 1
+        self._wait_rules[new_station.id]["waited_at"] += timedelta(seconds=t_waited)
+
+        self._presenter.prompt_to_continue()
+
+    def get_expected_wait_times(
+        self, player: Player
+    ) -> list[float, float, float, float]:
+        """Return the expected time to wait for the transportation in each
+        direction, 0 if there is no station adjacent in that direction."""
+        raise NotImplementedError
+
+    def get_wait_times(self, player: Player) -> list[float, float, float, float]:
+        """Sample the distributions for each direction's transportation,
+        0 if there is no station adjacent in that direction."""
+        idx = player.station_id
+        result = []
+        for direction in ["N", "S", "W", "E"]:
+            neighbor_id = self._wait_rules[idx][direction]
+            if neighbor_id is not None:
+                result.append(self._wait_rules[neighbor_id]["rule"].rvs())
+            else:
+                result.append(0)
+
+        return result
