@@ -23,18 +23,8 @@ class View:
 
         self.root = tk.Tk()
         self.root.bind("p", self.on_play_selected)
-        # self.root.bind("t", self.on_trial_selected)
-        # self.root.bind("s", self.on_simulation_selected)
+        self.root.bind("q", self.on_quit)
         self.root.mainloop()
-
-    def workflow(self):
-        """View methods workflow:
-
-        Controller waits for action
-        -> calls Interactor
-        -> which calls Presenter to display
-        """
-        raise NotImplementedError
 
     def on_play_selected(self, event: tk.Event) -> None:  # action listener
         """Action Listener to play"""
@@ -45,6 +35,16 @@ class View:
             name = self.prompt_for_name()
             station_id = self.prompt_for_station()
             self._controller.handle_new_game(name, station_id)
+        finally:
+            self._busy = False
+
+    def on_quit(self, event: tk.Event) -> None:
+        """Action Listener to quit"""
+        if self._busy:
+            return
+        self._busy = True
+        try:
+            pass
         finally:
             self._busy = False
 
@@ -75,9 +75,9 @@ class View:
 
 if __name__ == "__main__":
 
+    presenter = Presenter()
+    interactor = Interactor(wait_rules=WaitRules(DEFAULT_STATIONS), presenter=presenter)
     view = View(
-        controller=Controller(),
-        presenter=Presenter(),
-        interactor=Interactor(gateway=WaitRules(DEFAULT_STATIONS)),
+        controller=Controller(interactor), presenter=presenter, interactor=interactor
     )
     # Nothing past this line will run until the app exits, keep above

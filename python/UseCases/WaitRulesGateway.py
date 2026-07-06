@@ -16,3 +16,15 @@ class WaitRulesGateway(ABC):
     @abstractmethod
     def set_distribution(self, station: Station, dist: rv_frozen) -> None:
         """Polymorphic function to set distributions at any station."""
+
+    @abstractmethod
+    def get_expectation(self, station_id: str) -> float:
+        """Return a sample for the distribution of that name and inputs."""
+
+    @abstractmethod
+    def __getitem__(self, station_id: int) -> dict:
+        """Return the rule entry for the station with id <station_id>."""
+
+    @abstractmethod
+    def get_adjacent_station_ids(self, station_id: int) -> list[int]:
+        """Return the ids of all stations adjacent to <station_id>."""
