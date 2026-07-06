@@ -1,4 +1,4 @@
-from Station import Station
+from Entities import Station
 
 
 class InvalidRouteError:
@@ -14,7 +14,6 @@ class Route:
     Private Attributes:
         - start: Station where the route starts
         - stop: Station where the route stops
-
     """
 
     start: Station
