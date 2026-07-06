@@ -1,3 +1,8 @@
+from datetime import timedelta
+
+from scipy.stats import rv_frozen
+
+
 class Station:
     """A station in World.
 
@@ -9,6 +14,15 @@ class Station:
 
     name: str
     id: int
+    name: str
+    rule_name: str
+    rule: rv_frozen
+    times_visited: int
+    waited_at: timedelta
+    N: int | None
+    S: int | None
+    E: int | None
+    W: int | None
 
     def __init__(self, name: str) -> None:
         """Create a Station."""
@@ -35,3 +49,8 @@ class Station:
     def set_id(self, id: int) -> None:
         """Set id."""
         self.id = id
+
+    def get_adjacent_station_ids(self, station_id: int) -> list[int]:
+        """Return the ids of all stations adjacent to <station_id>."""
+        station = self._rule_map[station_id]
+        return [station[d] for d in ("N", "S", "E", "W") if station[d] is not None]
