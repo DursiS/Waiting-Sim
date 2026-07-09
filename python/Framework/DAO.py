@@ -1,10 +1,10 @@
 from datetime import timedelta
-from typing import Any, Callable, overload
+from typing import Any
 
-from scipy.stats import rv_frozen
+from scipy.stats._distn_infrastructure import rv_frozen
 
 from Entities import Station
-from Framework.Database import CLOSED_FORM_EXPECTATIONS, DEFAULT_STATIONS
+from Framework.Database import DEFAULT_STATIONS
 from UseCases.WaitRulesGateway import WaitRulesGateway
 
 
@@ -47,3 +47,7 @@ class WaitRules(WaitRulesGateway):
     def __getitem__(self, station_id: int) -> dict:
         """Return the rule entry for the station with id <station_id>."""
         return self._rule_map[station_id]
+
+    def station_ids(self) -> list[int]:
+        """Return the ids of every station."""
+        return list(self._rule_map.keys())

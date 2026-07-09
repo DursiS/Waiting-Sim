@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import timedelta
 
-from scipy.stats import rv_frozen
+from scipy.stats._distn_infrastructure import rv_frozen
 
 from Entities import Station
 
@@ -12,6 +12,10 @@ class WaitRulesGateway(ABC):
     @abstractmethod
     def set_dt(self, dt: timedelta) -> None:
         """Set dt in which wait time is counted in"""
+
+    @abstractmethod
+    def get_dt(self, dt: timedelta) -> None:
+        """Get dt in which wait time is counted in"""
 
     @abstractmethod
     def set_distribution(self, station: Station, dist: rv_frozen) -> None:
@@ -26,5 +30,5 @@ class WaitRulesGateway(ABC):
         """Return the rule entry for the station with id <station_id>."""
 
     @abstractmethod
-    def get_adjacent_station_ids(self, station_id: int) -> list[int]:
-        """Return the ids of all stations adjacent to <station_id>."""
+    def station_ids(self) -> list[int]:
+        """Return the ids of every station."""
