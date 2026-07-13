@@ -1,2 +1,4 @@
 __pycache__/
-test/
+*.pyc
+TODO
+README

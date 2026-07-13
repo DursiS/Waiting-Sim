@@ -11,7 +11,7 @@ from UseCases.DAI import DAI
 from UseCases.Player import Player
 
 
-class Interactor:
+class GameInteractor:
     """Orchestrates business logic"""
 
     _world: World
@@ -49,11 +49,14 @@ class Interactor:
         messages = []
 
         E_t = self.get_expected_wait_times(player)
-        messages.append(self._presenter.say_expected_times(E_t))
+        messages.append(
+            self._presenter.say_expected_times(dict(zip(self._directions, E_t)))
+        )
 
         t = self.get_wait_times(player)
-        messages.append(self._presenter.say_sequenced_wait_times(t))
-        messages.append(self._presenter.say_wait_time_metrics(t))
+        messages.append(
+            self._presenter.say_sequenced_wait_times(dict(zip(self._directions, t)))
+        )
         t_waited, destination = player.wait(t)
         messages.append(self._presenter.say_time_waited(t_waited, destination))
 
@@ -66,7 +69,7 @@ class Interactor:
         player.move(self._instantiate_station(self._dao.get_record(first_to_arrive)))
 
         self._dao.save_player(player.convert_to_data())
-        self._presenter.prompt_to_continue()
+        messages.append(self._presenter.prompt_to_continue())
 
         return self._world.get_stations(), player.station, messages
 
@@ -86,11 +89,18 @@ class Interactor:
         """Continue a pre-existing game or start a new one otherwise."""
         if self._dao.exists_player_data():
             data = self._dao.get_player_data()
-            player = Player.build_player_from_data(data)
+            player_station = self._instantiate_station(
+                self._dao.get_record(data["station"])
+            )
+            player = Player.build_player_from_data(data, player_station)
 
             return self._game_turn(player)
 
         return self._world.get_stations(), None, [self._presenter.say_cant_continue()]
+
+    def get_world_stations(self) -> list[Station]:
+        """Return every station in the world."""
+        return self._world.get_stations()
 
     def execute_quit_game(self) -> None:
         """Quit the game"""
@@ -118,7 +128,7 @@ class Interactor:
 
     def get_expected_wait_times(self, player: Player) -> list[Any]:
         """Return the expected time to wait for the transportation in each
-        direction, 0 if there is no station adjacent in that direction."""
+        direction, None if there is no station adjacent in that direction."""
         idx = player.station.id
         result = []
         for direction in self._directions:
@@ -126,12 +136,12 @@ class Interactor:
             if neighbor_id is not None:
                 result.append(self._dao.get_expectation(neighbor_id))
             else:
-                result.append(0)
+                result.append(None)
         return result
 
     def get_wait_times(self, player: Player) -> list[Any]:
         """Sample the distributions for each direction's transportation,
-        0 if there is no station adjacent in that direction."""
+        None if there is no station adjacent in that direction."""
         idx = player.station.id
         result = []
         for direction in self._directions:
@@ -139,5 +149,5 @@ class Interactor:
             if neighbor_id is not None:
                 result.append(self._dao[neighbor_id]["rule"].rvs())
             else:
-                result.append(0)
+                result.append(None)
         return result

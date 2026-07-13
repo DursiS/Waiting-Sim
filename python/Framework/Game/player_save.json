@@ -1,0 +1,9 @@
+{
+  "name": "mE",
+  "id": 2866,
+  "station": 1,
+  "time_waited": 16.0,
+  "stations_visited": {
+    "1": true
+  }
+}
