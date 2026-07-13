@@ -2,13 +2,14 @@ from typing import Any
 
 from Entities import Station
 from Entities.World import World
+from UseCases.Game.GameInputBoundry import GameInputBoundry
 
 from UseCases.Game.GameOutputBoundry import GameOutputBoundry
 from UseCases.AccessWaitRulesInterface import AccessWaitRulesInterface
 from Entities.Player import Player
 
 
-class GameInteractor:
+class GameInteractor(GameInputBoundry):
     """Orchestrates business logic"""
 
     _world: World
