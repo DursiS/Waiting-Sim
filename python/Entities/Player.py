@@ -66,5 +66,8 @@ class Player:
         player = cls(starting_station=station, name=data["name"])
         player.id = data["id"]
         player.time_waited = timedelta(seconds=data["time_waited"])
-        player.stations_visited = data["stations_visited"]
+        player.stations_visited = {
+            int(station_id): visited
+            for station_id, visited in data["stations_visited"].items()
+        }
         return player
