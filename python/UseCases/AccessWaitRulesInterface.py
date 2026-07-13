@@ -7,7 +7,7 @@ from scipy.stats._distn_infrastructure import rv_frozen
 from Entities import Station
 
 
-class AccessWaitRules(ABC):
+class AccessWaitRulesInterface(ABC):
     """Applies parameter changes to a WaitRules instance."""
 
     @abstractmethod
@@ -44,7 +44,7 @@ class AccessWaitRules(ABC):
 
     @abstractmethod
     def save_player(self, player_data: dict) -> None:
-        """Write player_info into player.json."""
+        """Write player_info into player_save.json."""
 
     @abstractmethod
     def get_player_data(self) -> dict:

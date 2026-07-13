@@ -1,25 +1,24 @@
-from datetime import timedelta
 from typing import Any
-
-import numpy as np
 
 from Entities import Station
 from Entities.World import World
 
-from UseCases.PresenterGateway import PresenterGateway
-from UseCases.DAI import DAI
-from UseCases.Player import Player
+from UseCases.Game.GameOutputBoundry import GameOutputBoundry
+from UseCases.AccessWaitRulesInterface import AccessWaitRulesInterface
+from Entities.Player import Player
 
 
 class GameInteractor:
     """Orchestrates business logic"""
 
     _world: World
-    _dao: DAI
-    _presenter: PresenterGateway
+    _dao: AccessWaitRulesInterface
+    _presenter: GameOutputBoundry
     _directions: tuple[str, str, str, str]
 
-    def __init__(self, dao: DAI, presenter: PresenterGateway) -> None:
+    def __init__(
+        self, dao: AccessWaitRulesInterface, presenter: GameOutputBoundry
+    ) -> None:
 
         self._dao = dao
         self._presenter = presenter
@@ -57,6 +56,7 @@ class GameInteractor:
         messages.append(
             self._presenter.say_sequenced_wait_times(dict(zip(self._directions, t)))
         )
+        self._presenter.say_waiting()
         t_waited, destination = player.wait(t)
         messages.append(self._presenter.say_time_waited(t_waited, destination))
 

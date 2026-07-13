@@ -6,13 +6,13 @@ from typing import Any
 from scipy.stats._distn_infrastructure import rv_frozen
 
 from Entities import Station
-from Framework.Database import DEFAULT_STATIONS
-from UseCases.DAI import AccessWaitRules
+from Framework.default_stations_database import DEFAULT_STATIONS
+from UseCases.AccessWaitRulesInterface import AccessWaitRulesInterface
 
 PLAYER_DATA_PATH = "player.json"
 
 
-class DAO(AccessWaitRules):
+class AccessWaitRules(AccessWaitRulesInterface):
     """Rules to determine how waiting time is configured for a whole world
     of stations.
 
@@ -65,7 +65,7 @@ class DAO(AccessWaitRules):
         return list(self._rule_map.values())
 
     def save_player(self, player_data: dict) -> None:
-        """Write player_info into player.json."""
+        """Write player_info into player_save.json."""
 
         def default(value: Any) -> Any:
             """Serialize value to be stored in JSON."""

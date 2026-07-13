@@ -201,7 +201,7 @@ class GameViewModel(ViewModel):
 
 
 if __name__ == "__main__":
-    from Framework.Database import DEFAULT_STATIONS
+    from Framework.default_stations_database import DEFAULT_STATIONS
 
     demo_stations = []
     for station_id, record in DEFAULT_STATIONS.items():

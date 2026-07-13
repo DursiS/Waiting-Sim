@@ -4,9 +4,6 @@ from datetime import timedelta
 from Entities import Station
 
 
-PLAYER_DATA_PATH = "Framework/player.json"
-
-
 class Player:
     """The player travelling the world station-to-station."""
 

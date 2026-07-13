@@ -24,6 +24,10 @@ class GamePresenter(GameOutputBoundry):
         ]
         return f"Wait times -- {', '.join(parts)}"
 
+    def say_waiting(self) -> str:
+        """Return a message telling the user their ride is on its way."""
+        return "Waiting for your ride to arrive..."
+
     def prompt_to_continue(self) -> str:
         """Return a message prompting the user to continue."""
         return "Press 'c' to continue..."

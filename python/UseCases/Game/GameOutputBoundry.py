@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import timedelta
 
 
-class PresenterGateway(ABC):
+class GameOutputBoundry(ABC):
     """An interface to decouple Adapter and Business logic."""
 
     @abstractmethod
@@ -16,6 +16,10 @@ class PresenterGateway(ABC):
     @abstractmethod
     def say_sequenced_wait_times(self, wait_times: dict[str, float | None]) -> str:
         """Return a message describing the sampled wait time for each direction."""
+
+    @abstractmethod
+    def say_waiting(self) -> str:
+        """Return a message telling the user their ride is on its way."""
 
     @abstractmethod
     def prompt_to_continue(self) -> str:

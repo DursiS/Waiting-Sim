@@ -1,9 +1,9 @@
 import pygame
 
-from Adapters import Controller, Presenter
-from Framework import DAO
-from Framework.ViewModel import ViewModel
-from UseCases.Interactor import Interactor
+from Interface_Adapters import GameController, GamePresenter
+from Framework import AccessWaitRules
+from Framework.Game.GameViewModel import DefaultViewModel, GameViewModel, ViewModel
+from UseCases.Game.GameInteractor import GameInteractor
 
 
 INPUT_BG_COLOR = (0, 0, 0)
@@ -13,9 +13,9 @@ INPUT_TEXT_COLOR = (255, 255, 255)
 class View:
     """The view of the app to hold all GUI logic."""
 
-    _controller: Controller
-    _presenter: Presenter
-    _interactor: Interactor
+    _controller: GameController
+    _presenter: GamePresenter
+    _interactor: GameInteractor
     _view_model: ViewModel
     _running: bool
     _busy: bool
@@ -24,7 +24,10 @@ class View:
     _pending_name: str
 
     def __init__(
-        self, controller: Controller, presenter: Presenter, interactor: Interactor
+        self,
+        controller: GameController,
+        presenter: GamePresenter,
+        interactor: GameInteractor,
     ) -> None:
         self._controller = controller
         self._presenter = presenter
@@ -36,7 +39,7 @@ class View:
         self._pending_name = ""
 
         pygame.init()
-        self._view_model = ViewModel.default(self._controller.get_stations())
+        self._view_model = DefaultViewModel(self._controller.get_stations())
         self._screen = pygame.display.set_mode(
             (self._view_model.width, self._view_model.height)
         )
@@ -44,14 +47,14 @@ class View:
         self.keydown_loop()
         pygame.quit()
 
-    def new_controller(self) -> Controller:
+    def new_controller(self) -> GameController:
         """Return a single new controller."""
-        presenter = Presenter()
-        interactor = Interactor(
-            dao=DAO(),
+        presenter = GamePresenter()
+        interactor = GameInteractor(
+            dao=AccessWaitRules(),
             presenter=presenter,
         )
-        return Controller(interactor)
+        return GameController(interactor)
 
     def keydown_loop(self) -> None:
         """Listen for keypresses, do the according actions, and redraw."""
@@ -113,7 +116,7 @@ class View:
 
     def _show(self, stations, curr_station, messages) -> None:
         """Build a ViewModel from the latest turn and resize the window to fit it."""
-        self._view_model = ViewModel(stations, curr_station, messages)
+        self._view_model = GameViewModel(stations, curr_station, messages)
         self._screen = pygame.display.set_mode(
             (self._view_model.width, self._view_model.height)
         )
@@ -146,18 +149,3 @@ class View:
             self._show(stations, curr_station, messages)
         finally:
             self._busy = False
-
-
-if __name__ == "__main__":
-
-    presenter = Presenter()
-    interactor = Interactor(
-        dao=DAO(),
-        presenter=presenter,
-    )
-    view = View(
-        controller=Controller(interactor),
-        presenter=presenter,
-        interactor=interactor,
-    )
-    # Nothing past this line will run until the app exits, keep above
