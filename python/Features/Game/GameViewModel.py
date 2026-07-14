@@ -201,10 +201,10 @@ class GameViewModel(ViewModel):
 
 
 if __name__ == "__main__":
-    from Framework.default_stations_database import DEFAULT_STATIONS
+    from Data.AccessWaitRules import AccessWaitRules
 
     demo_stations = []
-    for station_id, record in DEFAULT_STATIONS.items():
+    for record in AccessWaitRules(default_num=0).get_records():
         station = Station(
             name=record["name"],
             rule_name=record["rule_name"],
@@ -217,7 +217,7 @@ if __name__ == "__main__":
             W=record["W"],
             coordinates=record["coordinates"],
         )
-        station.set_id(station_id)
+        station.set_id(record["id"])
         demo_stations.append(station)
 
     demo_messages = [

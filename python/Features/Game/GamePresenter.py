@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from UseCases.Game.GameOutputBoundry import GameOutputBoundry
+from Features.Game.GameOutputBoundry import GameOutputBoundry
 
 
 class GamePresenter(GameOutputBoundry):

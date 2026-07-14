@@ -1,9 +1,10 @@
 import pygame
 
-from Interface_Adapters import GameController, GamePresenter
-from Framework import AccessWaitRules
-from Framework.Game.GameViewModel import DefaultViewModel, GameViewModel, ViewModel
-from UseCases.Game.GameInteractor import GameInteractor
+from Features.Game.GameController import GameController
+from Features.Game.GamePresenter import GamePresenter
+from Data.AccessWaitRules import AccessWaitRules
+from Features.Game.GameViewModel import DefaultViewModel, GameViewModel, ViewModel
+from Features.Game.GameInteractor import GameInteractor
 
 
 INPUT_BG_COLOR = (0, 0, 0)

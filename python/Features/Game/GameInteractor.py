@@ -2,10 +2,10 @@ from typing import Any
 
 from Entities import Station
 from Entities.World import World
-from UseCases.Game.GameInputBoundry import GameInputBoundry
+from Features.Game.GameInputBoundry import GameInputBoundry
 
-from UseCases.Game.GameOutputBoundry import GameOutputBoundry
-from UseCases.AccessWaitRulesInterface import AccessWaitRulesInterface
+from Features.Game.GameOutputBoundry import GameOutputBoundry
+from Data.AccessWaitRulesInterface import AccessWaitRulesInterface
 from Entities.Player import Player
 
 
@@ -57,7 +57,7 @@ class GameInteractor(GameInputBoundry):
         messages.append(
             self._presenter.say_sequenced_wait_times(dict(zip(self._directions, t)))
         )
-        self._presenter.say_waiting()
+        messages.append(self._presenter.say_waiting())
         t_waited, destination = player.wait(t)
         messages.append(self._presenter.say_time_waited(t_waited, destination))
 

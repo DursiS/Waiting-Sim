@@ -1,7 +1,8 @@
-from Framework import AccessWaitRules
-from Framework.View import View
-from Interface_Adapters import GameController, GamePresenter
-from UseCases.Game.GameInteractor import GameInteractor
+from Data.AccessWaitRules import AccessWaitRules
+from App.View import View
+from Features.Game.GameController import GameController
+from Features.Game.GamePresenter import GamePresenter
+from Features.Game.GameInteractor import GameInteractor
 
 
 if __name__ == "__main__":

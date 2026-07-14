@@ -7,10 +7,11 @@ from scipy import stats
 from scipy.stats._distn_infrastructure import rv_frozen
 
 from Entities import Station
-from UseCases.AccessWaitRulesInterface import AccessWaitRulesInterface
+from Data.AccessWaitRulesInterface import AccessWaitRulesInterface
 
-PLAYER_DATA_PATH = "Framework/Game/player_save.json"
-DEFAULT_STATION_DATA_PATH = "Framework/default_stations_database.json"
+DATA_DIR = os.path.dirname(__file__)
+PLAYER_DATA_PATH = os.path.join(DATA_DIR, "player_data.json")
+DEFAULT_STATION_DATA_PATH = os.path.join(DATA_DIR, "default_stations_database.json")
 
 RULE_FACTORIES = {
     "geometric": stats.geom,
@@ -104,7 +105,7 @@ class AccessWaitRules(AccessWaitRulesInterface):
         return list(self._rule_map.values())
 
     def save_player(self, player_data: dict) -> None:
-        """Write player_info into player_save.json."""
+        """Write player_info into player_data.json."""
 
         def default(value: Any) -> Any:
             """Serialize value to be stored in JSON."""

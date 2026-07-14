@@ -44,7 +44,7 @@ class AccessWaitRulesInterface(ABC):
 
     @abstractmethod
     def save_player(self, player_data: dict) -> None:
-        """Write player_info into player_save.json."""
+        """Write player_info into player_data.json."""
 
     @abstractmethod
     def get_player_data(self) -> dict:

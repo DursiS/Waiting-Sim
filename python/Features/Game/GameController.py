@@ -1,5 +1,5 @@
 from Entities import Station
-from UseCases.Game.GameInputBoundry import GameInputBoundry
+from Features.Game.GameInputBoundry import GameInputBoundry
 
 
 class GameController:
