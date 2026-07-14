@@ -19,9 +19,9 @@ PANEL_DIVIDER_COLOR = (70, 70, 80)
 MESSAGE_COLOR = (220, 220, 220)
 
 
-class ViewModel:
+class GameViewModel:
     """A pygame rendering of the world grid, prompts, and a live side text
-    block of presenter messages."""
+    block of presenter messages, for an active game turn."""
 
     stations: list[Station]
     curr_station: Station | None
@@ -168,7 +168,7 @@ class ViewModel:
         self.draw_messages(screen, message_font)
 
 
-class DefaultViewModel(ViewModel):
+class DefaultViewModel(GameViewModel):
     """Default homescreen to select functionality from."""
 
     def __init__(self, stations: list[Station]) -> None:
@@ -193,55 +193,3 @@ class DefaultViewModel(ViewModel):
             PROMPT_COLOR,
         )
         screen.blit(prompt, (PADDING, self.height - PROMPT_HEIGHT // 2))
-
-
-class GameViewModel(ViewModel):
-    """A pygame rendering of the world grid, prompts, and a live side text
-    block of presenter messages, for an active game turn."""
-
-
-if __name__ == "__main__":
-    from Data.AccessWaitRules import AccessWaitRules
-
-    demo_stations = []
-    for record in AccessWaitRules(default_num=0).get_records():
-        station = Station(
-            name=record["name"],
-            rule_name=record["rule_name"],
-            rule=record["rule"],
-            times_visited=record["times_visited"],
-            waited_at=record["waited_at"],
-            N=record["N"],
-            S=record["S"],
-            E=record["E"],
-            W=record["W"],
-            coordinates=record["coordinates"],
-        )
-        station.set_id(record["id"])
-        demo_stations.append(station)
-
-    demo_messages = [
-        "Expected wait times: [0, 3.5, 3.3, 3.0]",
-        "Wait times: [0, 3, 2, 2]",
-        "You waited 2.0s for your ride to arrive to West",
-    ]
-    demo_view_model = GameViewModel(
-        demo_stations, curr_station=demo_stations[0], messages=demo_messages
-    )
-
-    pygame.init()
-    demo_screen = pygame.display.set_mode(
-        (demo_view_model.width, demo_view_model.height)
-    )
-    pygame.display.set_caption("Waiting Sim")
-
-    demo_running = True
-    while demo_running:
-        for demo_event in pygame.event.get():
-            if demo_event.type == pygame.QUIT:
-                demo_running = False
-
-        demo_view_model.draw(demo_screen)
-        pygame.display.flip()
-
-    pygame.quit()
