@@ -7,6 +7,7 @@ from Features.Game.GameInputBoundry import GameInputBoundry
 from Features.Game.GameOutputBoundry import GameOutputBoundry
 from Data.AccessWaitRulesInterface import AccessWaitRulesInterface
 from Entities.Player import Player
+from Features.Game.GameState import GameState
 
 
 class GameInteractor(GameInputBoundry):
@@ -43,7 +44,7 @@ class GameInteractor(GameInputBoundry):
         station.set_id(record["id"])
         return station
 
-    def _game_turn(self, player: Player) -> tuple[list[Station], Station, list[str]]:
+    def _game_turn(self, player: Player) -> GameState:
         """Run one turn of the game, returning the world's stations, the
         player's resulting station, and the turn's messages."""
         messages = []
@@ -72,7 +73,7 @@ class GameInteractor(GameInputBoundry):
         self._dao.save_player(player.convert_to_data())
         messages.append(self._presenter.prompt_to_continue())
 
-        return self._world.get_stations(), player.station, messages
+        return GameState(self._world.get_stations(), player.station, messages)
 
     def execute_new_game(
         self, name: str, starting_station_id: int
