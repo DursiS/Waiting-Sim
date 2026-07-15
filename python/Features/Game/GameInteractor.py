@@ -1,13 +1,8 @@
 from typing import Any
 
-from Entities import Station
-from Entities.World import World
-from Features.Game.GameInputBoundry import GameInputBoundry
-
-from Features.Game.GameOutputBoundry import GameOutputBoundry
-from Data.AccessWaitRulesInterface import AccessWaitRulesInterface
-from Entities.Player import Player
-from Features.Game.GameState import GameState
+from Entities import Station, World, Player
+from Features.Game import GameInputBoundry, GameOutputBoundry, GameState
+from Data import AccessWaitRulesInterface
 
 
 class GameInteractor(GameInputBoundry):
@@ -44,12 +39,11 @@ class GameInteractor(GameInputBoundry):
         station.set_id(record["id"])
         return station
 
-    def _game_turn(self, player: Player) -> GameState:
+    def _game_turn(self, player: Player, rand_arrival: bool) -> GameState:
         """Run one turn of the game, returning the world's stations, the
         player's resulting station, and the turn's messages."""
         messages = []
-
-        E_t = self.get_expected_wait_times(player)
+        E_t = self.get_expected_wait_times(player, rand_arrival)
         messages.append(
             self._presenter.say_expected_times(dict(zip(self._directions, E_t)))
         )
@@ -73,10 +67,18 @@ class GameInteractor(GameInputBoundry):
         self._dao.save_player(player.convert_to_data())
         messages.append(self._presenter.prompt_to_continue())
 
-        return GameState(self._world.get_stations(), player.station, messages)
+        return GameState(
+            random_arrival=rand_arrival,
+            player_station=player.station,
+            messages=messages,
+            world_stations=self._world.get_stations(),
+        )
 
     def execute_new_game(
-        self, name: str, starting_station_id: int
+        self,
+        name: str,
+        starting_station_id: int,
+        rand_arrival: bool,
     ) -> tuple[list[Station], Station, list[str]]:
         """Orchestrate a single game."""
         starting_station = self._instantiate_station(self._dao[starting_station_id])
@@ -85,7 +87,7 @@ class GameInteractor(GameInputBoundry):
             starting_station=starting_station,
         )
 
-        return self._game_turn(player)
+        return self._game_turn(player, rand_arrival)
 
     def execute_continue_game(self) -> tuple[list[Station], Station | None, list[str]]:
         """Continue a pre-existing game or start a new one otherwise."""
@@ -96,7 +98,7 @@ class GameInteractor(GameInputBoundry):
             )
             player = Player.build_player_from_data(data, player_station)
 
-            return self._game_turn(player)
+            return self._game_turn(player, rand_arrival=False)
 
         return self._world.get_stations(), None, [self._presenter.say_cant_continue()]
 
@@ -128,18 +130,21 @@ class GameInteractor(GameInputBoundry):
         world.add_stations(stations)
         return world
 
-    def get_expected_wait_times(self, player: Player) -> list[Any]:
+    def get_expected_wait_times(self, player: Player, rand_arrival: bool) -> list[Any]:
         """Return the expected time to wait for the transportation in each
         direction, None if there is no station adjacent in that direction."""
-        idx = player.station.id
-        result = []
-        for direction in self._directions:
-            neighbor_id = self._dao[idx][direction]
-            if neighbor_id is not None:
-                result.append(self._dao.get_expectation(neighbor_id))
-            else:
-                result.append(None)
-        return result
+        if not rand_arrival:
+            idx = player.station.id
+            result = []
+            for direction in self._directions:
+                neighbor_id = self._dao[idx][direction]
+                if neighbor_id is not None:
+                    result.append(self._dao.get_expectation(neighbor_id))
+                else:
+                    result.append(None)
+            return result
+        else:
+            return []
 
     def get_wait_times(self, player: Player) -> list[Any]:
         """Sample the distributions for each direction's transportation,

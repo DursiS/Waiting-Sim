@@ -7,7 +7,7 @@ from scipy import stats
 from scipy.stats._distn_infrastructure import rv_frozen
 
 from Entities import Station
-from Data.AccessWaitRulesInterface import AccessWaitRulesInterface
+from Data import AccessWaitRulesInterface
 
 DATA_DIR = os.path.dirname(__file__)
 PLAYER_DATA_PATH = os.path.join(DATA_DIR, "player_data.json")

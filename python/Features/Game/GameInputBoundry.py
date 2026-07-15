@@ -8,7 +8,10 @@ class GameInputBoundry(ABC):
 
     @abstractmethod
     def execute_new_game(
-        self, name: str, starting_station_id: int
+        self,
+        name: str,
+        starting_station_id: int,
+        rand_arrival: bool,
     ) -> tuple[list[Station], Station, list[str]]:
         """Orchestrate a single game."""
 
