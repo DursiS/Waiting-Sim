@@ -1,6 +1,9 @@
+from typing import Callable
+
 import pygame
 
-from App.ViewModelFacade import ViewModelFacade
+from App import ViewModelFacade
+from Features.Game import GameView
 
 
 MENU_WIDTH = 500
@@ -14,12 +17,18 @@ class ViewFacade:
     view models."""
 
     view_model_facade: ViewModelFacade
+    _game_view_factory: Callable[[], GameView]
     _busy: bool
     _running: bool
     _key_observers: dict
 
-    def __init__(self, view_model_facade: ViewModelFacade) -> None:
+    def __init__(
+        self,
+        view_model_facade: ViewModelFacade,
+        game_view_factory: Callable[[], GameView],
+    ) -> None:
         self.view_model_facade = view_model_facade
+        self._game_view_factory = game_view_factory
         self._busy = False
         self._running = True
         self._key_observers = {
@@ -48,23 +57,23 @@ class ViewFacade:
             self._draw()
             pygame.display.flip()
 
+    def _resize_if_needed(self, width: int, height: int) -> None:
+        """Resize the screen to (<width>, <height>) only if it isn't already
+        that size, avoiding a display recreation every frame."""
+        if self._screen.get_size() != (width, height):
+            self._screen = pygame.display.set_mode((width, height))
+
     def _draw(self) -> None:
-        """Draw whichever mode is active, or the default menu."""
-        game_view_model = self.view_model_facade.game_view_model
+        """Draw the active simulation view model, or the default menu."""
         simulation_view_model = self.view_model_facade.simulation_view_model
 
-        if game_view_model._running:
-            self._screen = pygame.display.set_mode(
-                (game_view_model.width, game_view_model.height)
-            )
-            game_view_model.draw(self._screen)
-        elif simulation_view_model._running:
-            self._screen = pygame.display.set_mode(
-                (simulation_view_model.width, simulation_view_model.height)
+        if simulation_view_model._running:
+            self._resize_if_needed(
+                simulation_view_model.width, simulation_view_model.height
             )
             simulation_view_model.draw(self._screen)
         else:
-            self._screen = pygame.display.set_mode((MENU_WIDTH, MENU_HEIGHT))
+            self._resize_if_needed(MENU_WIDTH, MENU_HEIGHT)
             self._draw_menu()
 
     def _draw_menu(self) -> None:
@@ -89,12 +98,15 @@ class ViewFacade:
             self._busy = False
 
     def on_game(self) -> None:
-        """Action Listener to start game mode"""
+        """Action Listener to launch the game feature. Blocks until the
+        player quits back out of it, then reclaims the display for the menu."""
         if self._busy:
             return
         self._busy = True
         try:
-            self.view_model_facade.start_game()
+            self._game_view_factory()
+            pygame.init()
+            self._screen = pygame.display.set_mode((MENU_WIDTH, MENU_HEIGHT))
         finally:
             self._busy = False
 
