@@ -1,3 +1,4 @@
+import random
 from typing import Any
 
 from Entities import Station, World, Player
@@ -133,28 +134,36 @@ class GameInteractor(GameInputBoundry):
     def get_expected_wait_times(self, player: Player, rand_arrival: bool) -> list[Any]:
         """Return the expected time to wait for the transportation in each
         direction, None if there is no station adjacent in that direction."""
-        if not rand_arrival:
-            idx = player.station.id
-            result = []
-            for direction in self._directions:
-                neighbor_id = self._dao[idx][direction]
-                if neighbor_id is not None:
-                    result.append(self._dao.get_expectation(neighbor_id))
-                else:
-                    result.append(None)
-            return result
-        else:
-            return []
+        idx = player.station.id
+        result = []
+        for direction in self._directions:
+            neighbor_id = self._dao[idx][direction]
+            E_x = None
 
-    def get_wait_times(self, player: Player) -> list[Any]:
+            if neighbor_id is not None:
+                E_x = self._dao.get_expectation(neighbor_id)
+                if rand_arrival:
+                    E_arrival = random.uniform(0, E_x) / 2
+                    E_x -= E_arrival
+
+            result.append(E_x)
+        return result
+
+    def get_wait_times(self, player: Player, rand_arrival: bool) -> list[Any]:
         """Sample the distributions for each direction's transportation,
         None if there is no station adjacent in that direction."""
         idx = player.station.id
         result = []
         for direction in self._directions:
             neighbor_id = self._dao[idx][direction]
+            x = None
+
             if neighbor_id is not None:
-                result.append(self._dao[neighbor_id]["rule"].rvs())
-            else:
-                result.append(None)
+                x = self._dao.sample_rule(neighbor_id)
+                if rand_arrival:
+                    arrival = random.uniform(0, x) / 2
+                    while x < arrival:
+                        x = self._dao.sample_rule(neighbor_id)
+                    x -= arrival
+            result.append(x)
         return result

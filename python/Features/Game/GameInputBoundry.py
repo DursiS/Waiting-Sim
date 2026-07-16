@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 from Entities import Station
+from .GameState import GameState
 
 
 class GameInputBoundry(ABC):
@@ -12,11 +13,11 @@ class GameInputBoundry(ABC):
         name: str,
         starting_station_id: int,
         rand_arrival: bool,
-    ) -> tuple[list[Station], Station, list[str]]:
+    ) -> GameState:
         """Orchestrate a single game."""
 
     @abstractmethod
-    def execute_continue_game(self) -> tuple[list[Station], Station | None, list[str]]:
+    def execute_continue_game(self) -> GameState:
         """Continue a pre-existing game or start a new one otherwise."""
 
     @abstractmethod
