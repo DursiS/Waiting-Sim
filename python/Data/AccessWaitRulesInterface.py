@@ -1,6 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 from datetime import timedelta
+from typing import Any
 
 from scipy.stats._distn_infrastructure import rv_frozen
 
@@ -24,7 +25,11 @@ class AccessWaitRulesInterface(ABC):
 
     @abstractmethod
     def get_expectation(self, station_id: str) -> float:
-        """Return a sample for the distribution of that name and inputs."""
+        """Return the expectation of the distribution of that name and inputs."""
+
+    @abstractmethod
+    def sample_rule(self, station_id: int) -> Any:
+        """Return a sample from the distribution of that name and inputs."""
 
     @abstractmethod
     def __getitem__(self, station_id: int) -> dict:
