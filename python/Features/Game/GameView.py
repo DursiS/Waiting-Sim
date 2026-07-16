@@ -1,34 +1,40 @@
 import pygame
 
-from Features.Game.GameController import GameController
-from Features.Game.GamePresenter import GamePresenter
-from Data.AccessWaitRules import AccessWaitRules
-from Features.Game.GameViewModel import DefaultViewModel, GameViewModel, ViewModel
-from Features.Game.GameInteractor import GameInteractor
+from Features.Game import (
+    GameController,
+    GamePresenter,
+    DefaultViewModel,
+    GameViewModel,
+    GameInteractor,
+    GameState,
+)
+from Data import AccessWaitRules
 
 
 INPUT_BG_COLOR = (0, 0, 0)
 INPUT_TEXT_COLOR = (255, 255, 255)
 
 
-class View:
+class GameView:
     """The view of the app to hold all GUI logic."""
 
     _controller: GameController
     _presenter: GamePresenter
     _interactor: GameInteractor
-    _view_model: ViewModel
+    _view_model: GameViewModel
     _running: bool
     _busy: bool
     _input_mode: str | None
     _input_buffer: str
     _pending_name: str
+    _pending_station_id: int
 
     def __init__(
         self,
         controller: GameController,
         presenter: GamePresenter,
         interactor: GameInteractor,
+        view_model: GameViewModel,
     ) -> None:
         self._controller = controller
         self._presenter = presenter
@@ -38,9 +44,10 @@ class View:
         self._input_mode = None
         self._input_buffer = ""
         self._pending_name = ""
+        self._pending_station_id = 0
 
         pygame.init()
-        self._view_model = DefaultViewModel(self._controller.get_stations())
+        self._view_model = view_model
         self._screen = pygame.display.set_mode(
             (self._view_model.width, self._view_model.height)
         )
@@ -80,7 +87,12 @@ class View:
 
     def _draw_input_prompt(self) -> None:
         """Draw the field currently being typed into over the current view."""
-        label = "Name" if self._input_mode == "name" else "Starting station id"
+        labels = {
+            "name": "Name",
+            "station": "Starting station id",
+            "arrival": "Random arrival? (y/n)",
+        }
+        label = labels.get(self._input_mode, "")
         font = pygame.font.SysFont(None, 28)
         text = font.render(f"{label}: {self._input_buffer}_", True, INPUT_TEXT_COLOR)
         box = text.get_rect(topleft=(20, 20)).inflate(20, 10)
@@ -97,7 +109,8 @@ class View:
             self._input_buffer += event.unicode
 
     def _submit_input(self) -> None:
-        """Advance the input flow when the field being typed into is submitted."""
+        """Advance the input flow when the field
+        being typed into is submitted."""
         if self._input_mode == "name":
             self._pending_name = self._input_buffer or "Player1"
             self._input_mode = "station"
@@ -105,18 +118,30 @@ class View:
         elif self._input_mode == "station":
             if not self._input_buffer.isdigit():
                 return
-            station_id = int(self._input_buffer)
+            self._pending_station_id = int(self._input_buffer)
+            self._input_mode = "arrival"
+            self._input_buffer = ""
+        elif self._input_mode == "arrival":
+            if self._input_buffer.lower() not in ("y", "n"):
+                return
+            rand_arrival = self._input_buffer.lower() == "y"
             self._input_mode = None
             self._input_buffer = ""
 
             controller = self.new_controller()
-            stations, curr_station, messages = controller.handle_new_game(
-                self._pending_name, station_id
+            game_state = controller.handle_new_game(
+                self._pending_name, self._pending_station_id, rand_arrival
             )
-            self._show(stations, curr_station, messages)
+            self._show(game_state)
 
-    def _show(self, stations, curr_station, messages) -> None:
-        """Build a ViewModel from the latest turn and resize the window to fit it."""
+    def _show(self, game_state: GameState) -> None:
+        """Build a ViewModel from <game_state> and
+        resize the window to fit it."""
+        stations, curr_station, messages = (
+            game_state.world_stations,
+            game_state.player_station,
+            game_state.messages,
+        )
         self._view_model = GameViewModel(stations, curr_station, messages)
         self._screen = pygame.display.set_mode(
             (self._view_model.width, self._view_model.height)
@@ -146,7 +171,7 @@ class View:
         self._busy = True
         try:
             controller = self.new_controller()
-            stations, curr_station, messages = controller.handle_continue_game()
-            self._show(stations, curr_station, messages)
+            game_state = controller.handle_continue_game()
+            self._show(game_state)
         finally:
             self._busy = False

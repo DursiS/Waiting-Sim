@@ -1,5 +1,5 @@
 from Entities import Station
-from Features.Game.GameInputBoundry import GameInputBoundry
+from Features.Game import GameInputBoundry
 
 
 class GameController:
@@ -12,10 +12,17 @@ class GameController:
         self.input_boundry = input_boundry
 
     def handle_new_game(
-        self, name: str, starting_station_id: int
+        self,
+        name: str,
+        starting_station_id: int,
+        rand_arrival: bool,
     ) -> tuple[list[Station], Station, list[str]]:
         """Start a new game."""
-        return self.input_boundry.execute_new_game(name, starting_station_id)
+        return self.input_boundry.execute_new_game(
+            name,
+            starting_station_id,
+            rand_arrival,
+        )
 
     def handle_continue_game(self) -> tuple[list[Station], Station | None, list[str]]:
         """Continue an existing game."""

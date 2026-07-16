@@ -29,19 +29,21 @@ class GameViewModel:
     grid_width: int
     width: int
     height: int
+    _running: bool
 
     def __init__(
         self,
-        stations: list[Station],
-        curr_station: Station | None,
+        stations: list[Station] = None,
+        curr_station: Station | None = None,
         messages: list[str] = None,
     ) -> None:
         """Create a ViewModel for <stations>, highlighting <curr_station>."""
-        self.stations = stations
+        self.stations = stations or []
         self.curr_station = curr_station
         self.messages = messages or []
-        x_m = max((s.coordinates[0] for s in stations), default=0)
-        y_m = max((s.coordinates[1] for s in stations), default=0)
+        self._running = False
+        x_m = max((s.coordinates[0] for s in self.stations), default=0)
+        y_m = max((s.coordinates[1] for s in self.stations), default=0)
         self.grid_width = (x_m + 1) * CELL_SIZE + PADDING * 2
         self.height = (y_m + 1) * CELL_SIZE + PADDING * 2 + PROMPT_HEIGHT
         self.width = self.grid_width + TEXT_PANEL_WIDTH
