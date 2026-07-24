@@ -62,6 +62,7 @@ class GameInteractor(GameInputBoundry):
 
         self._dao.save_player(player.convert_to_data())
         self._presenter.show_player_station(player.station)
+        self._presenter.show_total_wait(player.time_waited.total_seconds())
         self._presenter.prompt_to_continue()
 
     def execute_new_game(
