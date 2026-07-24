@@ -24,7 +24,7 @@ class GameView:
     _input_mode: str | None
     _input_buffer: str
     _pending_name: str
-    _pending_station_id: int
+    _pending_map_id: int
 
     def __init__(
         self,
@@ -41,7 +41,7 @@ class GameView:
         self._input_mode = None
         self._input_buffer = ""
         self._pending_name = ""
-        self._pending_station_id = 0
+        self._pending_map_id = 0
 
         self._view_model = view_model
         self._screen = pygame.display.set_mode(
@@ -66,6 +66,13 @@ class GameView:
                     elif event.key == pygame.K_c:
                         self.on_continue()
 
+            if self._screen.get_size() != (
+                self._view_model.width,
+                self._view_model.height,
+            ):
+                self._screen = pygame.display.set_mode(
+                    (self._view_model.width, self._view_model.height)
+                )
             self._view_model.draw(self._screen)
             if self._input_mode is not None:
                 self._draw_input_prompt()
@@ -73,12 +80,14 @@ class GameView:
 
     def _draw_input_prompt(self) -> None:
         """Draw the field currently being typed into over the current view."""
-        labels = {
-            "name": "Name",
-            "station": "Starting station id",
-            "arrival": "Random arrival? (y/n)",
-        }
-        label = labels.get(self._input_mode, "")
+        if self._input_mode == "map":
+            ids = "/".join(str(m) for m in self._controller.get_map_ids())
+            label = f"Map id ({ids})"
+        else:
+            label = {
+                "name": "Name",
+                "arrival": "Random arrival? (y/n)",
+            }.get(self._input_mode, "")
         font = pygame.font.SysFont(None, 28)
         text = font.render(f"{label}: {self._input_buffer}_", True, INPUT_TEXT_COLOR)
         box = text.get_rect(topleft=(20, 20)).inflate(20, 10)
@@ -99,12 +108,14 @@ class GameView:
         being typed into is submitted."""
         if self._input_mode == "name":
             self._pending_name = self._input_buffer or "Player1"
-            self._input_mode = "station"
+            self._input_mode = "map"
             self._input_buffer = ""
-        elif self._input_mode == "station":
+        elif self._input_mode == "map":
             if not self._input_buffer.isdigit():
                 return
-            self._pending_station_id = int(self._input_buffer)
+            if int(self._input_buffer) not in self._controller.get_map_ids():
+                return
+            self._pending_map_id = int(self._input_buffer)
             self._input_mode = "arrival"
             self._input_buffer = ""
         elif self._input_mode == "arrival":
@@ -115,7 +126,7 @@ class GameView:
             self._input_buffer = ""
 
             self._controller.handle_new_game(
-                self._pending_name, self._pending_station_id, rand_arrival
+                self._pending_name, self._pending_map_id, rand_arrival
             )
 
     def on_play(self) -> None:  # action listener

@@ -48,6 +48,26 @@ class AccessWaitRulesInterface(ABC):
         """Return every station's record."""
 
     @abstractmethod
+    def load_map(self, map_id: int) -> None:
+        """Switch the active configuration to the map with id <map_id>."""
+
+    @abstractmethod
+    def map_ids(self) -> list[int]:
+        """Return the ids of every available default map."""
+
+    @abstractmethod
+    def current_map_id(self) -> int | None:
+        """Return the id of the currently loaded map."""
+
+    @abstractmethod
+    def save_highscore(self, map_id: int, name: str, time_waited: float) -> None:
+        """Append a completion of map <map_id> to the persistent highscores."""
+
+    @abstractmethod
+    def get_highscores(self, map_id: int) -> list[dict]:
+        """Return every recorded completion of the map with id <map_id>."""
+
+    @abstractmethod
     def save_player(self, player_data: dict) -> None:
         """Write player_info into player_data.json."""
 

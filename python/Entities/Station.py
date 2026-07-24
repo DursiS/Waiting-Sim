@@ -13,6 +13,7 @@ class Station:
         - times_visited: The number of times this station has been visited
         - waited_at: The total time spent waiting at this station
         - N, S, E, W: The adjacent station's id in that direction, or None
+        - end: Whether this station is the map's finish line
 
     Stations may have the same name but NOT the same id.
     """
@@ -28,6 +29,7 @@ class Station:
     E: int | None
     W: int | None
     coordinates: tuple[int, int]
+    end: bool
 
     def __init__(
         self,
@@ -41,6 +43,7 @@ class Station:
         E: int | None = None,
         W: int | None = None,
         coordinates: tuple[int, int] = None,
+        end: bool = False,
     ) -> None:
         """Create a Station."""
         self.name = name
@@ -53,6 +56,7 @@ class Station:
         self.E = E
         self.W = W
         self.coordinates = coordinates
+        self.end = end
 
     def __eq__(self, other: object) -> bool:
         """Return True if and only if <other> has the same name."""

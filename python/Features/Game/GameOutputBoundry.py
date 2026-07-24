@@ -12,8 +12,16 @@ class GameOutputBoundry(ABC):
         """Clear the running turn messages before a new turn."""
 
     @abstractmethod
+    def show_stations(self, stations: list[Station]) -> None:
+        """Show <stations> as the map the player is on."""
+
+    @abstractmethod
     def show_player_station(self, station: Station) -> None:
         """Highlight <station> as the player's current location."""
+
+    @abstractmethod
+    def say_reached_end(self, total_wait: float) -> None:
+        """Announce the player reached the end after <total_wait> seconds."""
 
     @abstractmethod
     def say_expected_times(self, expected_times: dict[str, float | None]) -> None:

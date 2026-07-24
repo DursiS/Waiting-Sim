@@ -10,6 +10,8 @@ TEXT_PANEL_WIDTH = 280
 BG_COLOR = (24, 24, 28)
 CELL_COLOR = (70, 130, 180)
 CURRENT_CELL_COLOR = (250, 180, 60)
+END_CELL_COLOR = (90, 190, 110)
+END_LABEL_COLOR = (20, 50, 30)
 BORDER_COLOR = (255, 255, 255)
 TEXT_COLOR = (255, 255, 255)
 RULE_TEXT_COLOR = (215, 230, 240)
@@ -124,11 +126,20 @@ class GameViewModel:
             is_current = (
                 self.curr_station is not None and station.id == self.curr_station.id
             )
-            pygame.draw.rect(
-                screen, CURRENT_CELL_COLOR if is_current else CELL_COLOR, rect
-            )
+            if is_current:
+                cell_color = CURRENT_CELL_COLOR
+            elif station.end:
+                cell_color = END_CELL_COLOR
+            else:
+                cell_color = CELL_COLOR
+            pygame.draw.rect(screen, cell_color, rect)
             if is_current:
                 pygame.draw.rect(screen, BORDER_COLOR, rect, width=4)
+            if station.end:
+                end_label = id_font.render("END", True, END_LABEL_COLOR)
+                screen.blit(
+                    end_label, end_label.get_rect(midtop=(rect.centerx, rect.top + 4))
+                )
 
             max_text_width = rect.width - 10
             name_lines = self._wrap_text(station.name, name_font, max_text_width)
