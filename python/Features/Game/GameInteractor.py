@@ -61,6 +61,7 @@ class GameInteractor(GameInputBoundry):
         first_to_arrive = getattr(starting_station, destination)
         player.move(self._instantiate_station(self._dao.get_record(first_to_arrive)))
         self._presenter.show_player_station(player.station)
+        self._presenter.show_total_wait(player.time_waited.total_seconds())
 
         if player.station.end:
             self._win(player)
