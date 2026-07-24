@@ -88,6 +88,10 @@ class AccessWaitRules(AccessWaitRulesInterface):
         """Return the expectation of the distribution of that name and inputs."""
         return self._rule_map[station_id]["rule"].mean()
 
+    def get_std_dev(self, station_id: int) -> float:
+        """Return the standard deviation of the distribution of that name and inputs."""
+        return self._rule_map[station_id]["rule"].std()
+
     def sample_rule(self, station_id: int) -> Any:
         """Return a sample from the distribution of that name and inputs."""
         return self._rule_map[station_id]["rule"].rvs()

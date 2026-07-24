@@ -12,6 +12,16 @@ class GameOutputBoundry(ABC):
         """Clear the running turn messages before a new turn."""
 
     @abstractmethod
+    def clear_wait_stats(self) -> None:
+        """Clear the wait-statistics header before a new game."""
+
+    @abstractmethod
+    def show_station_expectations(
+        self, station_stats: list[tuple[str, float, float]]
+    ) -> None:
+        """Add each station's expected wait time with error bars."""
+
+    @abstractmethod
     def show_player_station(self, station: Station) -> None:
         """Highlight <station> as the player's current location."""
 

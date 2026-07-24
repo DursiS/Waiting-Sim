@@ -71,6 +71,7 @@ class GameInteractor(GameInputBoundry):
         rand_arrival: bool,
     ) -> None:
         """Orchestrate a single game."""
+        self._present_wait_stats()
         starting_station = self._instantiate_station(self._dao[starting_station_id])
         player = Player(
             name=name,
@@ -78,6 +79,22 @@ class GameInteractor(GameInputBoundry):
         )
 
         self._game_turn(player, rand_arrival)
+
+    def _present_wait_stats(self) -> None:
+        """Feed the presenter the map's per-station wait statistics."""
+        self._presenter.clear_wait_stats()
+        self._presenter.show_station_expectations(self._station_expectations())
+
+    def _station_expectations(self) -> list[tuple[str, float, float]]:
+        """Return the name, expected wait and std dev of every station."""
+        return [
+            (
+                record["name"],
+                self._dao.get_expectation(record["id"]),
+                self._dao.get_std_dev(record["id"]),
+            )
+            for record in self._dao.get_records()
+        ]
 
     def execute_continue_game(self) -> None:
         """Continue a pre-existing game, or report there is nothing to continue."""
