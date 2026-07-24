@@ -49,6 +49,21 @@ class GamePresenter(GameOutputBoundry):
         """Add a message prompting the user to continue."""
         self.view_model.add_message("Press 'c' to continue...")
 
+    def say_explanation(self) -> None:
+        """Add the new-game explanation of how to play and the goal."""
+        self.view_model.add_message("Welcome to Waiting-Sim!")
+        self.view_model.add_message(
+            "Each turn you wait at your station for the next ride; the first to "
+            "arrive takes you to that neighbouring station."
+        )
+        self.view_model.add_message(
+            "Expected and sampled wait times are shown so you can read the "
+            "network's rhythm."
+        )
+        self.view_model.add_message(
+            "Goal: travel the map with as little total waiting as possible."
+        )
+
     def say_no_save(self) -> None:
         """Add a message telling the user there is no save to continue from."""
         self.view_model.add_message("No current save exists...")

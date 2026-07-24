@@ -60,9 +60,15 @@ class GameInteractor(GameInputBoundry):
         first_to_arrive = getattr(starting_station, destination)
         player.move(self._instantiate_station(self._dao.get_record(first_to_arrive)))
 
-        self._dao.save_player(player.convert_to_data())
+        self._save_player(player, rand_arrival)
         self._presenter.show_player_station(player.station)
         self._presenter.prompt_to_continue()
+
+    def _save_player(self, player: Player, rand_arrival: bool) -> None:
+        """Persist <player> along with their random-arrival choice."""
+        data = player.convert_to_data()
+        data["rand_arrival"] = rand_arrival
+        self._dao.save_player(data)
 
     def execute_new_game(
         self,
@@ -70,14 +76,18 @@ class GameInteractor(GameInputBoundry):
         starting_station_id: int,
         rand_arrival: bool,
     ) -> None:
-        """Orchestrate a single game."""
+        """Set up a game and explain it, leaving the first turn to a continue."""
         starting_station = self._instantiate_station(self._dao[starting_station_id])
         player = Player(
             name=name,
             starting_station=starting_station,
         )
 
-        self._game_turn(player, rand_arrival)
+        self._save_player(player, rand_arrival)
+        self._presenter.show_player_station(starting_station)
+        self._presenter.clear_messages()
+        self._presenter.say_explanation()
+        self._presenter.prompt_to_continue()
 
     def execute_continue_game(self) -> None:
         """Continue a pre-existing game, or report there is nothing to continue."""
@@ -91,7 +101,7 @@ class GameInteractor(GameInputBoundry):
             self._dao.get_record(data["station"])
         )
         player = Player.build_player_from_data(data, player_station)
-        self._game_turn(player, rand_arrival=False)
+        self._game_turn(player, data.get("rand_arrival", False))
 
     def execute_quit_game(self) -> None:
         """Quit the game"""
