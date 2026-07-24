@@ -3,12 +3,9 @@ import pygame
 from Features.Game import (
     GameController,
     GamePresenter,
-    DefaultViewModel,
     GameViewModel,
     GameInteractor,
-    GameState,
 )
-from Data import AccessWaitRules
 
 
 INPUT_BG_COLOR = (0, 0, 0)
@@ -46,23 +43,12 @@ class GameView:
         self._pending_name = ""
         self._pending_station_id = 0
 
-        pygame.init()
         self._view_model = view_model
         self._screen = pygame.display.set_mode(
             (self._view_model.width, self._view_model.height)
         )
-        pygame.display.set_caption("Waiting Sim")
+        pygame.display.set_caption("Waiting-Sim")
         self.keydown_loop()
-        pygame.quit()
-
-    def new_controller(self) -> GameController:
-        """Return a single new controller."""
-        presenter = GamePresenter()
-        interactor = GameInteractor(
-            dao=AccessWaitRules(),
-            presenter=presenter,
-        )
-        return GameController(interactor)
 
     def keydown_loop(self) -> None:
         """Listen for keypresses, do the according actions, and redraw."""
@@ -128,24 +114,9 @@ class GameView:
             self._input_mode = None
             self._input_buffer = ""
 
-            controller = self.new_controller()
-            game_state = controller.handle_new_game(
+            self._controller.handle_new_game(
                 self._pending_name, self._pending_station_id, rand_arrival
             )
-            self._show(game_state)
-
-    def _show(self, game_state: GameState) -> None:
-        """Build a ViewModel from <game_state> and
-        resize the window to fit it."""
-        stations, curr_station, messages = (
-            game_state.world_stations,
-            game_state.player_station,
-            game_state.messages,
-        )
-        self._view_model = GameViewModel(stations, curr_station, messages)
-        self._screen = pygame.display.set_mode(
-            (self._view_model.width, self._view_model.height)
-        )
 
     def on_play(self) -> None:  # action listener
         """Action Listener to play"""
@@ -170,8 +141,6 @@ class GameView:
             return
         self._busy = True
         try:
-            controller = self.new_controller()
-            game_state = controller.handle_continue_game()
-            self._show(game_state)
+            self._controller.handle_continue_game()
         finally:
             self._busy = False

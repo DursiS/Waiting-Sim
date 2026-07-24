@@ -36,13 +36,14 @@ class WaitingSimulatorBuilder:
 
     def build_game(self) -> GameView:
         """Build a new GameView."""
-        game_presenter = GamePresenter()
+        game_view_model = GameViewModel()
+        game_presenter = GamePresenter(game_view_model)
         game_interactor = GameInteractor(
             dao=AccessWaitRules(),
             presenter=game_presenter,
         )
         game_controller = GameController(game_interactor)
-        game_view_model = GameViewModel(game_controller.get_stations())
+        game_view_model.set_stations(game_controller.get_stations())
         game_view = GameView(
             controller=game_controller,
             presenter=game_presenter,

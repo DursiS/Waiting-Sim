@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from Data import AccessWaitRulesInterface
+from Entities import Player
 from Features.Simulation import SimulationOutputBoundry
 from Features.Simulation.SimulationInputBoundry import SimulationInputBoundry
 
@@ -30,11 +31,6 @@ class SimulationInteractor(SimulationInputBoundry):
         step: int
         trial: int
 
-    def _step(self, rand_arrival: bool) -> StepData:
-        """Arrive randomly at a station, get on the first train that arrives
-        and report the data in <data>."""
-        raise NotImplementedError
-
     def _format_output_data(
         self, simulation_hist: list[list]
     ) -> dict[tuple[int, int], float]:
@@ -53,6 +49,7 @@ class SimulationInteractor(SimulationInputBoundry):
         self, trials: int, steps: int, rand_arrival: bool
     ) -> dict[tuple[int, int], float]:
         """Execute a new simulation."""
+        self._presenter.clear_messages()
         self._presenter.say_executing_simulation(trials, steps, rand_arrival)
 
         simulation_history = []
@@ -65,3 +62,12 @@ class SimulationInteractor(SimulationInputBoundry):
         self._presenter.say_done_trials()
 
         return self._format_output_data(simulation_history)
+
+    def _step(self, player: Player, rand_arrival: bool) -> StepData:
+        """Arrive randomly at a station, get on the first train that arrives
+        and report the data in <data>."""
+
+        # look at current station the player is at
+        #
+
+        raise NotImplementedError
