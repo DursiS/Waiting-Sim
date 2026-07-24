@@ -42,11 +42,32 @@ class GameViewModel:
         self.curr_station = curr_station
         self.messages = messages or []
         self._running = False
+        self._recompute_dimensions()
+
+    def _recompute_dimensions(self) -> None:
+        """Size the window to fit the station grid plus the side text panel."""
         x_m = max((s.coordinates[0] for s in self.stations), default=0)
         y_m = max((s.coordinates[1] for s in self.stations), default=0)
         self.grid_width = (x_m + 1) * CELL_SIZE + PADDING * 2
         self.height = (y_m + 1) * CELL_SIZE + PADDING * 2 + PROMPT_HEIGHT
         self.width = self.grid_width + TEXT_PANEL_WIDTH
+
+    def set_stations(self, stations: list[Station]) -> None:
+        """Replace the shown stations and resize to fit them."""
+        self.stations = stations
+        self._recompute_dimensions()
+
+    def set_current_station(self, station: Station | None) -> None:
+        """Set which station is highlighted as the player's location."""
+        self.curr_station = station
+
+    def clear_messages(self) -> None:
+        """Empty the side text block."""
+        self.messages = []
+
+    def add_message(self, message: str) -> None:
+        """Add <message> to the side text block; the draw loop shows it next frame."""
+        self.messages.append(message)
 
     def _wrap_text(
         self, text: str, font: pygame.font.Font, max_width: int

@@ -2,7 +2,7 @@ import random
 from typing import Any
 
 from Entities import Station, World, Player
-from Features.Game import GameInputBoundry, GameOutputBoundry, GameState
+from Features.Game import GameInputBoundry, GameOutputBoundry
 from Data import AccessWaitRulesInterface
 
 
@@ -20,7 +20,7 @@ class GameInteractor(GameInputBoundry):
 
         self._dao = dao
         self._presenter = presenter
-        self._world = self.execute_new_world()
+        self._world = self._new_world()
         self._directions = ("N", "S", "W", "E")
 
     def _instantiate_station(self, record: dict) -> Station:
@@ -40,22 +40,17 @@ class GameInteractor(GameInputBoundry):
         station.set_id(record["id"])
         return station
 
-    def _game_turn(self, player: Player, rand_arrival: bool) -> GameState:
-        """Run one turn of the game, returning the world's stations, the
-        player's resulting station, and the turn's messages."""
-        messages = []
-        E_t = self.get_expected_wait_times(player, rand_arrival)
-        messages.append(
-            self._presenter.say_expected_times(dict(zip(self._directions, E_t)))
-        )
+    def _game_turn(self, player: Player, rand_arrival: bool) -> None:
+        """Run one turn of the game, feeding the presenter as it goes."""
+        self._presenter.clear_messages()
+        E_t = self._get_expected_wait_times(player, rand_arrival)
+        self._presenter.say_expected_times(dict(zip(self._directions, E_t)))
 
-        t = self.get_wait_times(player)
-        messages.append(
-            self._presenter.say_sequenced_wait_times(dict(zip(self._directions, t)))
-        )
-        messages.append(self._presenter.say_waiting())
+        t = self._get_wait_times(player, rand_arrival)
+        self._presenter.say_sequenced_wait_times(dict(zip(self._directions, t)))
+        self._presenter.say_waiting()
         t_waited, destination = player.wait(t)
-        messages.append(self._presenter.say_time_waited(t_waited, destination))
+        self._presenter.say_time_waited(t_waited, destination)
 
         starting_station = player.station
         idx = starting_station.id
@@ -66,21 +61,15 @@ class GameInteractor(GameInputBoundry):
         player.move(self._instantiate_station(self._dao.get_record(first_to_arrive)))
 
         self._dao.save_player(player.convert_to_data())
-        messages.append(self._presenter.prompt_to_continue())
-
-        return GameState(
-            random_arrival=rand_arrival,
-            player_station=player.station,
-            messages=messages,
-            world_stations=self._world.get_stations(),
-        )
+        self._presenter.show_player_station(player.station)
+        self._presenter.prompt_to_continue()
 
     def execute_new_game(
         self,
         name: str,
         starting_station_id: int,
         rand_arrival: bool,
-    ) -> tuple[list[Station], Station, list[str]]:
+    ) -> None:
         """Orchestrate a single game."""
         starting_station = self._instantiate_station(self._dao[starting_station_id])
         player = Player(
@@ -88,31 +77,32 @@ class GameInteractor(GameInputBoundry):
             starting_station=starting_station,
         )
 
-        return self._game_turn(player, rand_arrival)
+        self._game_turn(player, rand_arrival)
 
-    def execute_continue_game(self) -> tuple[list[Station], Station | None, list[str]]:
-        """Continue a pre-existing game or start a new one otherwise."""
-        if self._dao.exists_player_data():
-            data = self._dao.get_player_data()
-            player_station = self._instantiate_station(
-                self._dao.get_record(data["station"])
-            )
-            player = Player.build_player_from_data(data, player_station)
+    def execute_continue_game(self) -> None:
+        """Continue a pre-existing game, or report there is nothing to continue."""
+        if not self._dao.exists_player_data():
+            self._presenter.clear_messages()
+            self._presenter.say_no_save()
+            return
 
-            return self._game_turn(player, rand_arrival=False)
+        data = self._dao.get_player_data()
+        player_station = self._instantiate_station(
+            self._dao.get_record(data["station"])
+        )
+        player = Player.build_player_from_data(data, player_station)
+        self._game_turn(player, rand_arrival=False)
 
-        return self._world.get_stations(), None, [self._presenter.say_cant_continue()]
+    def execute_quit_game(self) -> None:
+        """Quit the game"""
+        self._dao.erase_player_data()
+        self._presenter.say_quitting_game()
 
     def get_world_stations(self) -> list[Station]:
         """Return every station in the world."""
         return self._world.get_stations()
 
-    def execute_quit_game(self) -> None:
-        """Quit the game"""
-        self._dao.erase_player_data()
-        self._presenter._say_quitting_game()
-
-    def execute_new_world(self) -> World:
+    def _new_world(self) -> World:
         """Return the default world configuration."""
         stations, coordinates = [], []
         for record in self._dao.get_records():
@@ -131,7 +121,7 @@ class GameInteractor(GameInputBoundry):
         world.add_stations(stations)
         return world
 
-    def get_expected_wait_times(self, player: Player, rand_arrival: bool) -> list[Any]:
+    def _get_expected_wait_times(self, player: Player, rand_arrival: bool) -> list[Any]:
         """Return the expected time to wait for the transportation in each
         direction, None if there is no station adjacent in that direction."""
         idx = player.station.id
@@ -149,7 +139,7 @@ class GameInteractor(GameInputBoundry):
             result.append(E_x)
         return result
 
-    def get_wait_times(self, player: Player, rand_arrival: bool) -> list[Any]:
+    def _get_wait_times(self, player: Player, rand_arrival: bool) -> list[Any]:
         """Sample the distributions for each direction's transportation,
         None if there is no station adjacent in that direction."""
         idx = player.station.id

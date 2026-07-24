@@ -1,0 +1,10 @@
+{
+  "name": "Me",
+  "id": 15623,
+  "station": 1,
+  "time_waited": 11.724123,
+  "stations_visited": {
+    "1": true,
+    "0": true
+  }
+}
