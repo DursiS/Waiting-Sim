@@ -5,6 +5,8 @@ from Entities import Station, World, Player
 from Features.Game import GameInputBoundry, GameOutputBoundry
 from Data import AccessWaitRulesInterface
 
+Z_95 = 1.645
+
 
 class GameInteractor(GameInputBoundry):
     """Orchestrates business logic"""
@@ -86,6 +88,8 @@ class GameInteractor(GameInputBoundry):
         self._presenter.show_station_expectations(self._station_expectations())
         total_expectation, total_std_dev = self._map_expectation()
         self._presenter.show_map_expectation(total_expectation, total_std_dev)
+        self._presenter.show_station_risks(self._station_risks())
+        self._presenter.show_map_risk(self._map_risk())
 
     def _station_expectations(self) -> list[tuple[str, float, float]]:
         """Return the name, expected wait and std dev of every station."""
@@ -109,6 +113,22 @@ class GameInteractor(GameInputBoundry):
             total_expectation += self._dao.get_expectation(record["id"])
             total_variance += self._dao.get_std_dev(record["id"]) ** 2
         return total_expectation, total_variance**0.5
+
+    def _station_risks(self) -> list[tuple[str, float]]:
+        """Return the name and 95th-percentile risk wait of every station."""
+        return [
+            (
+                record["name"],
+                self._dao.get_expectation(record["id"])
+                + Z_95 * self._dao.get_std_dev(record["id"]),
+            )
+            for record in self._dao.get_records()
+        ]
+
+    def _map_risk(self) -> float:
+        """Return the map's 95th-percentile risk wait time for the total."""
+        total_expectation, total_std_dev = self._map_expectation()
+        return total_expectation + Z_95 * total_std_dev
 
     def execute_continue_game(self) -> None:
         """Continue a pre-existing game, or report there is nothing to continue."""

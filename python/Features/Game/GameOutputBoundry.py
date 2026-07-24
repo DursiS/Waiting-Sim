@@ -26,6 +26,14 @@ class GameOutputBoundry(ABC):
         """Add the map's total expected wait time with error bars."""
 
     @abstractmethod
+    def show_station_risks(self, station_risks: list[tuple[str, float]]) -> None:
+        """Add each station's 95th-percentile risk wait time."""
+
+    @abstractmethod
+    def show_map_risk(self, risk: float) -> None:
+        """Add the map's 95th-percentile risk wait time."""
+
+    @abstractmethod
     def show_player_station(self, station: Station) -> None:
         """Highlight <station> as the player's current location."""
 
