@@ -22,6 +22,10 @@ class GameOutputBoundry(ABC):
         """Add each station's expected wait time with error bars."""
 
     @abstractmethod
+    def show_map_expectation(self, expectation: float, std_dev: float) -> None:
+        """Add the map's total expected wait time with error bars."""
+
+    @abstractmethod
     def show_player_station(self, station: Station) -> None:
         """Highlight <station> as the player's current location."""
 

@@ -26,6 +26,12 @@ class GamePresenter(GameOutputBoundry):
         for name, expectation, std_dev in station_stats:
             self.view_model.add_wait_stat(f"{name}: {expectation:.1f} +/- {std_dev:.1f}s")
 
+    def show_map_expectation(self, expectation: float, std_dev: float) -> None:
+        """Add the map's total expected wait time with error bars."""
+        self.view_model.add_wait_stat(
+            f"Map total: {expectation:.1f} +/- {std_dev:.1f}s"
+        )
+
     def show_player_station(self, station: Station) -> None:
         """Highlight <station> as the player's current location."""
         self.view_model.set_current_station(station)

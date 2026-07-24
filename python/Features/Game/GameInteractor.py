@@ -81,9 +81,11 @@ class GameInteractor(GameInputBoundry):
         self._game_turn(player, rand_arrival)
 
     def _present_wait_stats(self) -> None:
-        """Feed the presenter the map's per-station wait statistics."""
+        """Feed the presenter the map's per-station and total wait statistics."""
         self._presenter.clear_wait_stats()
         self._presenter.show_station_expectations(self._station_expectations())
+        total_expectation, total_std_dev = self._map_expectation()
+        self._presenter.show_map_expectation(total_expectation, total_std_dev)
 
     def _station_expectations(self) -> list[tuple[str, float, float]]:
         """Return the name, expected wait and std dev of every station."""
@@ -95,6 +97,18 @@ class GameInteractor(GameInputBoundry):
             )
             for record in self._dao.get_records()
         ]
+
+    def _map_expectation(self) -> tuple[float, float]:
+        """Return the map's total expected wait and the std dev of that total.
+
+        Stations are treated as independent, so the variance of the total is
+        the sum of variances and its std dev is the root of that sum."""
+        total_expectation = 0.0
+        total_variance = 0.0
+        for record in self._dao.get_records():
+            total_expectation += self._dao.get_expectation(record["id"])
+            total_variance += self._dao.get_std_dev(record["id"]) ** 2
+        return total_expectation, total_variance**0.5
 
     def execute_continue_game(self) -> None:
         """Continue a pre-existing game, or report there is nothing to continue."""
