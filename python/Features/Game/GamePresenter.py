@@ -26,6 +26,13 @@ class GamePresenter(GameOutputBoundry):
         """Show the player's cumulative wait time so far."""
         self.view_model.set_total_wait(total_wait)
 
+    def show_best_highscore(self, best: dict | None) -> None:
+        """Show the current map's best highscore, or N/A if there is none."""
+        if best is None:
+            self.view_model.set_best_highscore("N/A")
+        else:
+            self.view_model.set_best_highscore(f"{best['name']} {best['time']:.1f}s")
+
     def say_reached_end(self, total_wait: float) -> None:
         """Announce the player reached the end after <total_wait> seconds."""
         self.view_model.add_message(

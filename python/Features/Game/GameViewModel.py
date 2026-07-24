@@ -20,6 +20,7 @@ PROMPT_COLOR = (200, 200, 60)
 PANEL_DIVIDER_COLOR = (70, 70, 80)
 MESSAGE_COLOR = (220, 220, 220)
 TOTAL_WAIT_COLOR = (255, 235, 150)
+BEST_SCORE_COLOR = (150, 235, 170)
 
 
 class GameViewModel:
@@ -30,6 +31,7 @@ class GameViewModel:
     curr_station: Station | None
     messages: list[str]
     total_wait: float
+    best_highscore: str
     grid_width: int
     width: int
     height: int
@@ -46,6 +48,7 @@ class GameViewModel:
         self.curr_station = curr_station
         self.messages = messages or []
         self.total_wait = 0.0
+        self.best_highscore = "N/A"
         self._running = False
         self._recompute_dimensions()
 
@@ -77,6 +80,10 @@ class GameViewModel:
     def set_total_wait(self, total_wait: float) -> None:
         """Set the player's cumulative wait time shown in the corner."""
         self.total_wait = total_wait
+
+    def set_best_highscore(self, best_highscore: str) -> None:
+        """Set the current map's best highscore shown in the corner."""
+        self.best_highscore = best_highscore
 
     def _wrap_text(
         self, text: str, font: pygame.font.Font, max_width: int
@@ -196,9 +203,11 @@ class GameViewModel:
             y += 10
 
     def draw_total_wait(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
-        """Draw the cumulative wait time in the top-left corner."""
-        text = font.render(f"Total wait: {self.total_wait:.1f}s", True, TOTAL_WAIT_COLOR)
-        screen.blit(text, (12, 10))
+        """Draw the cumulative wait time and best highscore in the top-left."""
+        total = font.render(f"Total wait: {self.total_wait:.1f}s", True, TOTAL_WAIT_COLOR)
+        screen.blit(total, (12, 10))
+        best = font.render(f"Best: {self.best_highscore}", True, BEST_SCORE_COLOR)
+        screen.blit(best, (12 + total.get_width() + 30, 10))
 
     def draw(self, screen: pygame.Surface) -> None:
         """Draw the grid, prompts, and messages onto <screen>."""

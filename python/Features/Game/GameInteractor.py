@@ -62,12 +62,18 @@ class GameInteractor(GameInputBoundry):
         player.move(self._instantiate_station(self._dao.get_record(first_to_arrive)))
         self._presenter.show_player_station(player.station)
         self._presenter.show_total_wait(player.time_waited.total_seconds())
+        self._presenter.show_best_highscore(self._best_highscore())
 
         if player.station.end:
             self._win(player)
         else:
             self._save_player(player)
             self._presenter.prompt_to_continue()
+
+    def _best_highscore(self) -> dict | None:
+        """Return the lowest-time completion of the current map, or None."""
+        highscores = self._dao.get_highscores(self._dao.current_map_id())
+        return min(highscores, key=lambda entry: entry["time"]) if highscores else None
 
     def _win(self, player: Player) -> None:
         """End the game: record the highscore and clear the save."""

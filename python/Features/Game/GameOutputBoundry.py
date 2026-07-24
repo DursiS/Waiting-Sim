@@ -24,6 +24,10 @@ class GameOutputBoundry(ABC):
         """Show the player's cumulative wait time so far."""
 
     @abstractmethod
+    def show_best_highscore(self, best: dict | None) -> None:
+        """Show the current map's best highscore, or N/A if there is none."""
+
+    @abstractmethod
     def say_reached_end(self, total_wait: float) -> None:
         """Announce the player reached the end after <total_wait> seconds."""
 
