@@ -14,6 +14,24 @@ class GamePresenter(GameOutputBoundry):
         """Clear the running turn messages before a new turn."""
         self.view_model.clear_messages()
 
+    def clear_wait_stats(self) -> None:
+        """Clear the wait-statistics header before a new game."""
+        self.view_model.clear_wait_stats()
+
+    def show_station_expectations(
+        self, station_stats: list[tuple[str, float, float]]
+    ) -> None:
+        """Add each station's expected wait time with error bars."""
+        self.view_model.add_wait_stat("Expected wait per station:")
+        for name, expectation, std_dev in station_stats:
+            self.view_model.add_wait_stat(f"{name}: {expectation:.1f} +/- {std_dev:.1f}s")
+
+    def show_map_expectation(self, expectation: float, std_dev: float) -> None:
+        """Add the map's total expected wait time with error bars."""
+        self.view_model.add_wait_stat(
+            f"Map total: {expectation:.1f} +/- {std_dev:.1f}s"
+        )
+
     def show_stations(self, stations: list[Station]) -> None:
         """Show <stations> as the map the player is on."""
         self.view_model.set_stations(stations)

@@ -28,6 +28,10 @@ class AccessWaitRulesInterface(ABC):
         """Return the expectation of the distribution of that name and inputs."""
 
     @abstractmethod
+    def get_std_dev(self, station_id: int) -> float:
+        """Return the standard deviation of the distribution of that name and inputs."""
+
+    @abstractmethod
     def sample_rule(self, station_id: int) -> Any:
         """Return a sample from the distribution of that name and inputs."""
 

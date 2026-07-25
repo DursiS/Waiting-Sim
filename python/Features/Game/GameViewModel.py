@@ -19,6 +19,7 @@ ID_TEXT_COLOR = (255, 210, 120)
 PROMPT_COLOR = (200, 200, 60)
 PANEL_DIVIDER_COLOR = (70, 70, 80)
 MESSAGE_COLOR = (220, 220, 220)
+STATS_COLOR = (150, 215, 235)
 TOTAL_WAIT_COLOR = (255, 235, 150)
 
 
@@ -29,6 +30,7 @@ class GameViewModel:
     stations: list[Station]
     curr_station: Station | None
     messages: list[str]
+    wait_stats: list[str]
     total_wait: float
     grid_width: int
     width: int
@@ -45,6 +47,7 @@ class GameViewModel:
         self.stations = stations or []
         self.curr_station = curr_station
         self.messages = messages or []
+        self.wait_stats = []
         self.total_wait = 0.0
         self._running = False
         self._recompute_dimensions()
@@ -73,6 +76,14 @@ class GameViewModel:
     def add_message(self, message: str) -> None:
         """Add <message> to the side text block; the draw loop shows it next frame."""
         self.messages.append(message)
+
+    def clear_wait_stats(self) -> None:
+        """Empty the wait-statistics header shown above the messages."""
+        self.wait_stats = []
+
+    def add_wait_stat(self, stat: str) -> None:
+        """Add <stat> to the wait-statistics header above the messages."""
+        self.wait_stats.append(stat)
 
     def set_total_wait(self, total_wait: float) -> None:
         """Set the player's cumulative wait time shown in the corner."""
@@ -179,7 +190,7 @@ class GameViewModel:
         screen.blit(prompt, (PADDING, self.height - PROMPT_HEIGHT // 2))
 
     def draw_messages(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
-        """Draw the presenter's messages in a side text block."""
+        """Draw the wait-statistics header and the presenter's messages."""
         panel_x = self.grid_width
         pygame.draw.line(
             screen, PANEL_DIVIDER_COLOR, (panel_x, 0), (panel_x, self.height), width=2
@@ -188,6 +199,18 @@ class GameViewModel:
         text_x = panel_x + PADDING // 2
         max_width = TEXT_PANEL_WIDTH - PADDING
         y = PADDING
+        for stat in self.wait_stats:
+            for line in self._wrap_text(stat, font, max_width):
+                rendered = font.render(line, True, STATS_COLOR)
+                screen.blit(rendered, (text_x, y))
+                y += rendered.get_height() + 2
+        if self.wait_stats:
+            y += 6
+            pygame.draw.line(
+                screen, PANEL_DIVIDER_COLOR, (text_x, y), (text_x + max_width, y), 1
+            )
+            y += 8
+
         for message in self.messages:
             for line in self._wrap_text(message, font, max_width):
                 rendered = font.render(line, True, MESSAGE_COLOR)

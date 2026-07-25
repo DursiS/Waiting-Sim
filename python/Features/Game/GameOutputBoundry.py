@@ -12,6 +12,20 @@ class GameOutputBoundry(ABC):
         """Clear the running turn messages before a new turn."""
 
     @abstractmethod
+    def clear_wait_stats(self) -> None:
+        """Clear the wait-statistics header before a new game."""
+
+    @abstractmethod
+    def show_station_expectations(
+        self, station_stats: list[tuple[str, float, float]]
+    ) -> None:
+        """Add each station's expected wait time with error bars."""
+
+    @abstractmethod
+    def show_map_expectation(self, expectation: float, std_dev: float) -> None:
+        """Add the map's total expected wait time with error bars."""
+
+    @abstractmethod
     def show_stations(self, stations: list[Station]) -> None:
         """Show <stations> as the map the player is on."""
 
