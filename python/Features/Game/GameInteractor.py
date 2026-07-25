@@ -38,6 +38,7 @@ class GameInteractor(GameInputBoundry):
             E=record["E"],
             W=record["W"],
             coordinates=record["coordinates"],
+            end=record["end"],
         )
         station.set_id(record["id"])
         return station
@@ -62,25 +63,47 @@ class GameInteractor(GameInputBoundry):
         first_to_arrive = getattr(starting_station, destination)
         player.move(self._instantiate_station(self._dao.get_record(first_to_arrive)))
 
-        self._dao.save_player(player.convert_to_data())
         self._presenter.show_player_station(player.station)
-        self._presenter.prompt_to_continue()
+        self._presenter.show_total_wait(player.time_waited.total_seconds())
+
+        if player.station.end:
+            self._win(player)
+        else:
+            self._save_player(player, rand_arrival)
+            self._presenter.prompt_to_continue()
+
+    def _win(self, player: Player) -> None:
+        """End the game: record the highscore and clear the save."""
+        total_wait = player.time_waited.total_seconds()
+        self._dao.save_highscore(self._dao.current_map_id(), player.name, total_wait)
+        self._dao.erase_player_data()
+        self._presenter.say_reached_end(total_wait)
+
+    def _save_player(self, player: Player, rand_arrival: bool) -> None:
+        """Persist <player> with their map and random-arrival choice."""
+        data = player.convert_to_data()
+        data["map_id"] = self._dao.current_map_id()
+        data["rand_arrival"] = rand_arrival
+        self._dao.save_player(data)
 
     def execute_new_game(
         self,
         name: str,
-        starting_station_id: int,
+        map_id: int,
         rand_arrival: bool,
     ) -> None:
-        """Orchestrate a single game."""
+        """Set up a game on <map_id> and explain it, leaving the first turn to
+        a continue."""
+        self._load_map(map_id)
         self._present_wait_stats()
-        starting_station = self._instantiate_station(self._dao[starting_station_id])
-        player = Player(
-            name=name,
-            starting_station=starting_station,
-        )
+        spawn = self._instantiate_station(self._dao.get_record(self._spawn_station_id()))
+        player = Player(name=name, starting_station=spawn)
 
-        self._game_turn(player, rand_arrival)
+        self._save_player(player, rand_arrival)
+        self._presenter.show_player_station(spawn)
+        self._presenter.clear_messages()
+        self._presenter.say_explanation()
+        self._presenter.prompt_to_continue()
 
     def _present_wait_stats(self) -> None:
         """Feed the presenter the map's per-station and total wait statistics."""
@@ -138,11 +161,12 @@ class GameInteractor(GameInputBoundry):
             return
 
         data = self._dao.get_player_data()
+        self._load_map(data.get("map_id", self._dao.current_map_id()))
         player_station = self._instantiate_station(
             self._dao.get_record(data["station"])
         )
         player = Player.build_player_from_data(data, player_station)
-        self._game_turn(player, rand_arrival=False)
+        self._game_turn(player, data.get("rand_arrival", False))
 
     def execute_quit_game(self) -> None:
         """Quit the game"""
@@ -152,6 +176,48 @@ class GameInteractor(GameInputBoundry):
     def get_world_stations(self) -> list[Station]:
         """Return every station in the world."""
         return self._world.get_stations()
+
+    def get_map_ids(self) -> list[int]:
+        """Return the ids of every selectable map."""
+        return self._dao.map_ids()
+
+    def _load_map(self, map_id: int) -> None:
+        """Switch to map <map_id>, rebuild the world and show it."""
+        self._dao.load_map(map_id)
+        self._world = self._new_world()
+        self._presenter.show_stations(self._world.get_stations())
+
+    def _spawn_station_id(self) -> int:
+        """Return the id of the station farthest from the map's end.
+
+        Ties are broken by the lowest id so a map spawns deterministically."""
+        distances = self._distances_from(self._end_station_id())
+        farthest = max(distances.values())
+        return min(sid for sid, dist in distances.items() if dist == farthest)
+
+    def _end_station_id(self) -> int:
+        """Return the id of the map's end station."""
+        for record in self._dao.get_records():
+            if record["end"]:
+                return record["id"]
+        raise ValueError("map has no end station")
+
+    def _distances_from(self, start_id: int) -> dict[int, int]:
+        """Return the step distance from <start_id> to every reachable station."""
+        distances = {start_id: 0}
+        queue = [start_id]
+        while queue:
+            current = queue.pop(0)
+            for neighbor_id in self._adjacent_ids(current):
+                if neighbor_id not in distances:
+                    distances[neighbor_id] = distances[current] + 1
+                    queue.append(neighbor_id)
+        return distances
+
+    def _adjacent_ids(self, station_id: int) -> list[int]:
+        """Return the ids of the stations adjacent to <station_id>."""
+        record = self._dao.get_record(station_id)
+        return [record[d] for d in self._directions if record[d] is not None]
 
     def _new_world(self) -> World:
         """Return the default world configuration."""
