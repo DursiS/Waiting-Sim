@@ -26,8 +26,20 @@ class GameOutputBoundry(ABC):
         """Add the map's total expected wait time with error bars."""
 
     @abstractmethod
+    def show_stations(self, stations: list[Station]) -> None:
+        """Show <stations> as the map the player is on."""
+
+    @abstractmethod
     def show_player_station(self, station: Station) -> None:
         """Highlight <station> as the player's current location."""
+
+    @abstractmethod
+    def show_total_wait(self, total_wait: float) -> None:
+        """Show the player's cumulative wait time so far."""
+
+    @abstractmethod
+    def say_reached_end(self, total_wait: float) -> None:
+        """Announce the player reached the end after <total_wait> seconds."""
 
     @abstractmethod
     def say_expected_times(self, expected_times: dict[str, float | None]) -> None:
@@ -52,6 +64,10 @@ class GameOutputBoundry(ABC):
     @abstractmethod
     def say_quitting_game(self) -> None:
         """Add a message telling the user the game is quitting."""
+
+    @abstractmethod
+    def say_explanation(self) -> None:
+        """Add the new-game explanation of how to play and the goal."""
 
     @abstractmethod
     def say_no_save(self) -> None:

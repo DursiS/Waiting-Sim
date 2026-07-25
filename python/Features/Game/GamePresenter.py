@@ -32,9 +32,24 @@ class GamePresenter(GameOutputBoundry):
             f"Map total: {expectation:.1f} +/- {std_dev:.1f}s"
         )
 
+    def show_stations(self, stations: list[Station]) -> None:
+        """Show <stations> as the map the player is on."""
+        self.view_model.set_stations(stations)
+
     def show_player_station(self, station: Station) -> None:
         """Highlight <station> as the player's current location."""
         self.view_model.set_current_station(station)
+
+    def show_total_wait(self, total_wait: float) -> None:
+        """Show the player's cumulative wait time so far."""
+        self.view_model.set_total_wait(total_wait)
+
+    def say_reached_end(self, total_wait: float) -> None:
+        """Announce the player reached the end after <total_wait> seconds."""
+        self.view_model.add_message(
+            f"You reached the end after waiting {total_wait:.1f}s total!"
+        )
+        self.view_model.add_message("Press P for a new game or Q to quit.")
 
     def say_expected_times(self, expected_times: dict[str, float | None]) -> None:
         """Add a message describing the expected
@@ -66,6 +81,21 @@ class GamePresenter(GameOutputBoundry):
     def prompt_to_continue(self) -> None:
         """Add a message prompting the user to continue."""
         self.view_model.add_message("Press 'c' to continue...")
+
+    def say_explanation(self) -> None:
+        """Add the new-game explanation of how to play and the goal."""
+        self.view_model.add_message("Welcome to Waiting-Sim!")
+        self.view_model.add_message(
+            "Each turn you wait at your station for the next ride; the first to "
+            "arrive takes you to that neighbouring station."
+        )
+        self.view_model.add_message(
+            "Expected and sampled wait times are shown so you can read the "
+            "network's rhythm."
+        )
+        self.view_model.add_message(
+            "Goal: travel the map with as little total waiting as possible."
+        )
 
     def say_no_save(self) -> None:
         """Add a message telling the user there is no save to continue from."""

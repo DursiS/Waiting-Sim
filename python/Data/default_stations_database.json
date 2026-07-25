@@ -63,7 +63,8 @@
       "S": null,
       "E": null,
       "W": null,
-      "coordinates": [1, 2]
+      "coordinates": [1, 2],
+      "end": true
     }
   },
   "1": {
@@ -130,7 +131,8 @@
       "S": null,
       "E": null,
       "W": 3,
-      "coordinates": [4, 0]
+      "coordinates": [4, 0],
+      "end": true
     }
   },
   "2": {
@@ -210,7 +212,8 @@
       "S": null,
       "E": null,
       "W": 4,
-      "coordinates": [2, 1]
+      "coordinates": [2, 1],
+      "end": true
     }
   }
 }

@@ -39,6 +39,19 @@ TRAIN_COLORS = {
     "O": (70, 70, 82),
 }
 
+ABOUT_TITLE_COLOR = (150, 215, 235)
+ABOUT_TEXT_COLOR = (220, 220, 225)
+ABOUT_TITLE = "About Waiting-Sim"
+ABOUT_LINES = [
+    "A small project for practicing Clean Architecture,",
+    "made for a University of Toronto software design course.",
+    "",
+    "Author: Sean Dursi",
+    "GitHub: github.com/DursiS/Waiting-Sim",
+    "",
+    "Press O to return to the menu.",
+]
+
 
 class ViewFacade:
     """Manage the main menu model and transition between feature
@@ -48,6 +61,7 @@ class ViewFacade:
     _game_view_factory: Callable[[], GameView]
     _busy: bool
     _running: bool
+    _showing_about: bool
     _key_observers: dict
 
     def __init__(
@@ -59,10 +73,12 @@ class ViewFacade:
         self._game_view_factory = game_view_factory
         self._busy = False
         self._running = True
+        self._showing_about = False
         self._key_observers = {
             pygame.K_q: self.on_quit,
             pygame.K_g: self.on_game,
             pygame.K_s: self.on_simulation,
+            pygame.K_o: self.on_about,
         }
 
         pygame.init()
@@ -92,10 +108,13 @@ class ViewFacade:
             self._screen = pygame.display.set_mode((width, height))
 
     def _draw(self) -> None:
-        """Draw the active simulation view model, or the default menu."""
+        """Draw the About screen, the active simulation, or the default menu."""
         simulation_view_model = self.view_model_facade.simulation_view_model
 
-        if simulation_view_model._running:
+        if self._showing_about:
+            self._resize_if_needed(MENU_WIDTH, MENU_HEIGHT)
+            self._draw_about()
+        elif simulation_view_model._running:
             self._resize_if_needed(
                 simulation_view_model.width, simulation_view_model.height
             )
@@ -145,11 +164,27 @@ class ViewFacade:
 
         prompt_font = pygame.font.SysFont(None, 30)
         prompt = prompt_font.render(
-            "Press G for Game     S for Simulation     Q to Quit",
+            "G Game     S Simulation     O About     Q Quit",
             True,
             PROMPT_COLOR,
         )
         self._screen.blit(prompt, prompt.get_rect(center=(width // 2, height - 55)))
+
+    def _draw_about(self) -> None:
+        """Draw the About screen with the project's intent, author and repo."""
+        self._screen.fill(BG_COLOR)
+        width, _ = self._screen.get_size()
+
+        title_font = pygame.font.SysFont("consolas", 44, bold=True)
+        title = title_font.render(ABOUT_TITLE, True, ABOUT_TITLE_COLOR)
+        self._screen.blit(title, title.get_rect(center=(width // 2, 90)))
+
+        text_font = pygame.font.SysFont(None, 30)
+        y = 180
+        for line in ABOUT_LINES:
+            rendered = text_font.render(line, True, ABOUT_TEXT_COLOR)
+            self._screen.blit(rendered, rendered.get_rect(center=(width // 2, y)))
+            y += 40
 
     def on_quit(self) -> None:
         """Action Listener to quit"""
@@ -161,6 +196,16 @@ class ViewFacade:
         finally:
             self._busy = False
 
+    def on_about(self) -> None:
+        """Action Listener to toggle the About screen"""
+        if self._busy:
+            return
+        self._busy = True
+        try:
+            self._showing_about = not self._showing_about
+        finally:
+            self._busy = False
+
     def on_game(self) -> None:
         """Action Listener to launch the game feature. Blocks until the
         player quits back out of it, then reclaims the display for the menu."""
@@ -168,6 +213,7 @@ class ViewFacade:
             return
         self._busy = True
         try:
+            self._showing_about = False
             self._game_view_factory()
             self._screen = pygame.display.set_mode((MENU_WIDTH, MENU_HEIGHT))
             pygame.display.set_caption("Waiting-Sim")
@@ -180,6 +226,7 @@ class ViewFacade:
             return
         self._busy = True
         try:
+            self._showing_about = False
             self.view_model_facade.start_simulation()
         finally:
             self._busy = False
