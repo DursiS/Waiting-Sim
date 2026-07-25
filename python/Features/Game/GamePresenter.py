@@ -22,13 +22,6 @@ class GamePresenter(GameOutputBoundry):
         """Highlight <station> as the player's current location."""
         self.view_model.set_current_station(station)
 
-    def say_reached_end(self, total_wait: float) -> None:
-        """Announce the player reached the end after <total_wait> seconds."""
-        self.view_model.add_message(
-            f"You reached the end after waiting {total_wait:.1f}s total!"
-        )
-        self.view_model.add_message("Press P for a new game or Q to quit.")
-
     def show_total_wait(self, total_wait: float) -> None:
         """Show the player's cumulative wait time so far."""
         self.view_model.set_total_wait(total_wait)

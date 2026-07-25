@@ -20,10 +20,6 @@ class GameOutputBoundry(ABC):
         """Highlight <station> as the player's current location."""
 
     @abstractmethod
-    def say_reached_end(self, total_wait: float) -> None:
-        """Announce the player reached the end after <total_wait> seconds."""
-
-    @abstractmethod
     def show_total_wait(self, total_wait: float) -> None:
         """Show the player's cumulative wait time so far."""
 
