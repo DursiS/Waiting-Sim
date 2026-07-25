@@ -10,6 +10,8 @@ TEXT_PANEL_WIDTH = 280
 BG_COLOR = (24, 24, 28)
 CELL_COLOR = (70, 130, 180)
 CURRENT_CELL_COLOR = (250, 180, 60)
+END_CELL_COLOR = (90, 190, 110)
+END_LABEL_COLOR = (20, 50, 30)
 BORDER_COLOR = (255, 255, 255)
 TEXT_COLOR = (255, 255, 255)
 RULE_TEXT_COLOR = (215, 230, 240)
@@ -18,6 +20,7 @@ PROMPT_COLOR = (200, 200, 60)
 PANEL_DIVIDER_COLOR = (70, 70, 80)
 MESSAGE_COLOR = (220, 220, 220)
 STATS_COLOR = (150, 215, 235)
+TOTAL_WAIT_COLOR = (255, 235, 150)
 
 
 class GameViewModel:
@@ -28,6 +31,7 @@ class GameViewModel:
     curr_station: Station | None
     messages: list[str]
     wait_stats: list[str]
+    total_wait: float
     grid_width: int
     width: int
     height: int
@@ -44,6 +48,7 @@ class GameViewModel:
         self.curr_station = curr_station
         self.messages = messages or []
         self.wait_stats = []
+        self.total_wait = 0.0
         self._running = False
         self._recompute_dimensions()
 
@@ -79,6 +84,10 @@ class GameViewModel:
     def add_wait_stat(self, stat: str) -> None:
         """Add <stat> to the wait-statistics header above the messages."""
         self.wait_stats.append(stat)
+
+    def set_total_wait(self, total_wait: float) -> None:
+        """Set the player's cumulative wait time shown in the corner."""
+        self.total_wait = total_wait
 
     def _wrap_text(
         self, text: str, font: pygame.font.Font, max_width: int
@@ -135,11 +144,20 @@ class GameViewModel:
             is_current = (
                 self.curr_station is not None and station.id == self.curr_station.id
             )
-            pygame.draw.rect(
-                screen, CURRENT_CELL_COLOR if is_current else CELL_COLOR, rect
-            )
+            if is_current:
+                cell_color = CURRENT_CELL_COLOR
+            elif station.end:
+                cell_color = END_CELL_COLOR
+            else:
+                cell_color = CELL_COLOR
+            pygame.draw.rect(screen, cell_color, rect)
             if is_current:
                 pygame.draw.rect(screen, BORDER_COLOR, rect, width=4)
+            if station.end:
+                end_label = id_font.render("END", True, END_LABEL_COLOR)
+                screen.blit(
+                    end_label, end_label.get_rect(midtop=(rect.centerx, rect.top + 4))
+                )
 
             max_text_width = rect.width - 10
             name_lines = self._wrap_text(station.name, name_font, max_text_width)
@@ -200,6 +218,11 @@ class GameViewModel:
                 y += rendered.get_height() + 2
             y += 10
 
+    def draw_total_wait(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
+        """Draw the cumulative wait time in the top-left corner."""
+        text = font.render(f"Total wait: {self.total_wait:.1f}s", True, TOTAL_WAIT_COLOR)
+        screen.blit(text, (12, 10))
+
     def draw(self, screen: pygame.Surface) -> None:
         """Draw the grid, prompts, and messages onto <screen>."""
         name_font = pygame.font.SysFont(None, 22)
@@ -207,11 +230,13 @@ class GameViewModel:
         id_font = pygame.font.SysFont(None, 16)
         prompt_font = pygame.font.SysFont(None, 24)
         message_font = pygame.font.SysFont(None, 18)
+        total_wait_font = pygame.font.SysFont(None, 24)
 
         screen.fill(BG_COLOR)
         self.draw_grid(screen, name_font, rule_font, id_font)
         self.draw_prompts(screen, prompt_font)
         self.draw_messages(screen, message_font)
+        self.draw_total_wait(screen, total_wait_font)
 
 
 class DefaultViewModel(GameViewModel):
