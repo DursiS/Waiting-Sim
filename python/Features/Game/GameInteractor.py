@@ -62,6 +62,7 @@ class GameInteractor(GameInputBoundry):
 
         self._save_player(player, rand_arrival)
         self._presenter.show_player_station(player.station)
+        self._presenter.show_total_wait(player.time_waited.total_seconds())
         self._presenter.prompt_to_continue()
 
     def _save_player(self, player: Player, rand_arrival: bool) -> None:

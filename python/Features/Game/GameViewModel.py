@@ -17,6 +17,7 @@ ID_TEXT_COLOR = (255, 210, 120)
 PROMPT_COLOR = (200, 200, 60)
 PANEL_DIVIDER_COLOR = (70, 70, 80)
 MESSAGE_COLOR = (220, 220, 220)
+TOTAL_WAIT_COLOR = (255, 235, 150)
 
 
 class GameViewModel:
@@ -26,6 +27,7 @@ class GameViewModel:
     stations: list[Station]
     curr_station: Station | None
     messages: list[str]
+    total_wait: float
     grid_width: int
     width: int
     height: int
@@ -41,6 +43,7 @@ class GameViewModel:
         self.stations = stations or []
         self.curr_station = curr_station
         self.messages = messages or []
+        self.total_wait = 0.0
         self._running = False
         self._recompute_dimensions()
 
@@ -68,6 +71,10 @@ class GameViewModel:
     def add_message(self, message: str) -> None:
         """Add <message> to the side text block; the draw loop shows it next frame."""
         self.messages.append(message)
+
+    def set_total_wait(self, total_wait: float) -> None:
+        """Set the player's cumulative wait time shown in the corner."""
+        self.total_wait = total_wait
 
     def _wrap_text(
         self, text: str, font: pygame.font.Font, max_width: int
@@ -177,6 +184,11 @@ class GameViewModel:
                 y += rendered.get_height() + 2
             y += 10
 
+    def draw_total_wait(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
+        """Draw the cumulative wait time in the top-left corner."""
+        text = font.render(f"Total wait: {self.total_wait:.1f}s", True, TOTAL_WAIT_COLOR)
+        screen.blit(text, (12, 10))
+
     def draw(self, screen: pygame.Surface) -> None:
         """Draw the grid, prompts, and messages onto <screen>."""
         name_font = pygame.font.SysFont(None, 22)
@@ -184,11 +196,13 @@ class GameViewModel:
         id_font = pygame.font.SysFont(None, 16)
         prompt_font = pygame.font.SysFont(None, 24)
         message_font = pygame.font.SysFont(None, 18)
+        total_wait_font = pygame.font.SysFont(None, 24)
 
         screen.fill(BG_COLOR)
         self.draw_grid(screen, name_font, rule_font, id_font)
         self.draw_prompts(screen, prompt_font)
         self.draw_messages(screen, message_font)
+        self.draw_total_wait(screen, total_wait_font)
 
 
 class DefaultViewModel(GameViewModel):

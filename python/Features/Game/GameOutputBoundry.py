@@ -16,6 +16,10 @@ class GameOutputBoundry(ABC):
         """Highlight <station> as the player's current location."""
 
     @abstractmethod
+    def show_total_wait(self, total_wait: float) -> None:
+        """Show the player's cumulative wait time so far."""
+
+    @abstractmethod
     def say_expected_times(self, expected_times: dict[str, float | None]) -> None:
         """Add a message describing the expected wait time for each direction."""
 
