@@ -69,8 +69,22 @@ class GameInteractor(GameInputBoundry):
         else:
             self._save_player(player)
             self._presenter.prompt_to_continue()
+
         self._presenter.show_total_wait(player.time_waited.total_seconds())
         self._presenter.prompt_to_continue()
+
+    def _win(self, player: Player) -> None:
+        """End the game: record the highscore and clear the save."""
+        total_wait = player.time_waited.total_seconds()
+        self._dao.save_highscore(self._dao.current_map_id(), player.name, total_wait)
+        self._dao.erase_player_data()
+        self._presenter.say_reached_end(total_wait)
+
+    def _save_player(self, player: Player) -> None:
+        """Persist <player> along with the map they are playing."""
+        data = player.convert_to_data()
+        data["map_id"] = self._dao.current_map_id()
+        self._dao.save_player(data)
 
     def _save_player(self, player: Player, rand_arrival: bool) -> None:
         """Persist <player> along with their random-arrival choice."""

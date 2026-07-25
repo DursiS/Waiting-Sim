@@ -33,6 +33,13 @@ class GamePresenter(GameOutputBoundry):
         """Show the player's cumulative wait time so far."""
         self.view_model.set_total_wait(total_wait)
 
+    def say_reached_end(self, total_wait: float) -> None:
+        """Announce the player reached the end after <total_wait> seconds."""
+        self.view_model.add_message(
+            f"You reached the end after waiting {total_wait:.1f}s total!"
+        )
+        self.view_model.add_message("Press P for a new game or Q to quit.")
+
     def say_expected_times(self, expected_times: dict[str, float | None]) -> None:
         """Add a message describing the expected
         wait time for each direction."""

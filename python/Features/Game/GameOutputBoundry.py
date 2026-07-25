@@ -28,6 +28,10 @@ class GameOutputBoundry(ABC):
         """Show the player's cumulative wait time so far."""
 
     @abstractmethod
+    def say_reached_end(self, total_wait: float) -> None:
+        """Announce the player reached the end after <total_wait> seconds."""
+
+    @abstractmethod
     def say_expected_times(self, expected_times: dict[str, float | None]) -> None:
         """Add a message describing the expected wait time for each direction."""
 
