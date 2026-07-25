@@ -40,5 +40,9 @@ class GameOutputBoundry(ABC):
         """Add a message telling the user the game is quitting."""
 
     @abstractmethod
+    def say_explanation(self) -> None:
+        """Add the new-game explanation of how to play and the goal."""
+
+    @abstractmethod
     def say_no_save(self) -> None:
         """Add a message telling the user there is no save to continue from."""
