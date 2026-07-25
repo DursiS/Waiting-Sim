@@ -1,3 +1,6 @@
+import threading
+from typing import Callable
+
 import pygame
 
 from Features.Game import (
@@ -44,6 +47,7 @@ class GameView:
         self._pending_map_id = 0
 
         self._view_model = view_model
+        self._clock = pygame.time.Clock()
         self._screen = pygame.display.set_mode(
             (self._view_model.width, self._view_model.height)
         )
@@ -77,6 +81,22 @@ class GameView:
             if self._input_mode is not None:
                 self._draw_input_prompt()
             pygame.display.flip()
+            self._clock.tick(60)
+
+    def _run_in_background(self, action: Callable[[], None]) -> None:
+        """Run <action> in a daemon thread so the draw loop keeps streaming
+        the presenter's updates in real time instead of freezing on the turn."""
+        if self._busy:
+            return
+        self._busy = True
+
+        def worker() -> None:
+            try:
+                action()
+            finally:
+                self._busy = False
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _draw_input_prompt(self) -> None:
         """Draw the field currently being typed into over the current view."""
@@ -125,8 +145,10 @@ class GameView:
             self._input_mode = None
             self._input_buffer = ""
 
-            self._controller.handle_new_game(
-                self._pending_name, self._pending_map_id, rand_arrival
+            self._run_in_background(
+                lambda: self._controller.handle_new_game(
+                    self._pending_name, self._pending_map_id, rand_arrival
+                )
             )
 
     def on_play(self) -> None:  # action listener
@@ -138,20 +160,8 @@ class GameView:
 
     def on_quit(self) -> None:
         """Action Listener to quit"""
-        if self._busy:
-            return
-        self._busy = True
-        try:
-            self._running = False
-        finally:
-            self._busy = False
+        self._running = False
 
     def on_continue(self) -> None:
         """Action Listener to continue"""
-        if self._busy:
-            return
-        self._busy = True
-        try:
-            self._controller.handle_continue_game()
-        finally:
-            self._busy = False
+        self._run_in_background(self._controller.handle_continue_game)
