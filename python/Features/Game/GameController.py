@@ -14,13 +14,13 @@ class GameController:
     def handle_new_game(
         self,
         name: str,
-        starting_station_id: int,
+        map_id: int,
         rand_arrival: bool,
     ) -> None:
-        """Start a new game."""
+        """Start a new game on the map with id <map_id>."""
         self.input_boundry.execute_new_game(
             name,
-            starting_station_id,
+            map_id,
             rand_arrival,
         )
 
@@ -31,3 +31,7 @@ class GameController:
     def get_stations(self) -> list[Station]:
         """Return every station in the world."""
         return self.input_boundry.get_world_stations()
+
+    def get_map_ids(self) -> list[int]:
+        """Return the ids of every selectable map."""
+        return self.input_boundry.get_map_ids()

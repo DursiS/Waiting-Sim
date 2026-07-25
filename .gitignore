@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+TODO
+README
+test/
+python/Data/highscores.json

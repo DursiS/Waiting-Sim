@@ -12,6 +12,7 @@ from Data import AccessWaitRulesInterface
 DATA_DIR = os.path.dirname(__file__)
 PLAYER_DATA_PATH = os.path.join(DATA_DIR, "player_data.json")
 DEFAULT_STATION_DATA_PATH = os.path.join(DATA_DIR, "default_stations_database.json")
+HIGHSCORES_PATH = os.path.join(DATA_DIR, "highscores.json")
 
 RULE_FACTORIES = {
     "geometric": stats.geom,
@@ -32,6 +33,7 @@ class AccessWaitRules(AccessWaitRulesInterface):
     """
 
     _rule_map: dict[int, dict[str, Any]]
+    _map_id: int | None
     dt: timedelta
 
     def __init__(
@@ -41,11 +43,10 @@ class AccessWaitRules(AccessWaitRulesInterface):
         dt: timedelta = timedelta(seconds=1),
     ) -> None:
         if default_rule_map is None:
-            if default_num is None:
-                self._rule_map = self._load_default(1)
-            else:
-                self._rule_map = self._load_default(default_num)
+            self._map_id = 1 if default_num is None else default_num
+            self._rule_map = self._load_default(self._map_id)
         else:
+            self._map_id = None
             self._rule_map = default_rule_map
         self.dt = dt
 
@@ -68,9 +69,25 @@ class AccessWaitRules(AccessWaitRulesInterface):
                 "E": record["E"],
                 "W": record["W"],
                 "coordinates": tuple(record["coordinates"]),
+                "end": record.get("end", False),
             }
             for station_id, record in stations.items()
         }
+
+    def load_map(self, map_id: int) -> None:
+        """Switch the active configuration to the map with id <map_id>."""
+        self._rule_map = self._load_default(map_id)
+        self._map_id = map_id
+
+    def map_ids(self) -> list[int]:
+        """Return the ids of every available default map."""
+        with open(DEFAULT_STATION_DATA_PATH, "r") as f:
+            raw = json.load(f)
+        return sorted(int(map_id) for map_id in raw)
+
+    def current_map_id(self) -> int | None:
+        """Return the id of the currently loaded map."""
+        return self._map_id
 
     def get_dt(self) -> timedelta:
         """Return dt."""
@@ -140,3 +157,24 @@ class AccessWaitRules(AccessWaitRulesInterface):
         """Erase current player data leaving an empty .json"""
         with open(PLAYER_DATA_PATH, "w"):
             pass
+
+    def _load_highscores(self) -> dict:
+        """Return every map's highscores keyed by map id, or an empty mapping."""
+        if not os.path.exists(HIGHSCORES_PATH) or os.path.getsize(HIGHSCORES_PATH) == 0:
+            return {}
+        with open(HIGHSCORES_PATH, "r") as f:
+            return json.load(f)
+
+    def save_highscore(self, map_id: int, name: str, time_waited: float) -> None:
+        """Append <name>'s <time_waited> completion of map <map_id> to the
+        persistent highscores mapping."""
+        highscores = self._load_highscores()
+        highscores.setdefault(str(map_id), []).append(
+            {"name": name, "time": time_waited}
+        )
+        with open(HIGHSCORES_PATH, "w") as f:
+            json.dump(highscores, f, indent=2)
+
+    def get_highscores(self, map_id: int) -> list[dict]:
+        """Return every recorded completion of the map with id <map_id>."""
+        return self._load_highscores().get(str(map_id), [])
