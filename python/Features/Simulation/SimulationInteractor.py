@@ -39,10 +39,10 @@ class SimulationInteractor(SimulationInputBoundry):
         return {
             (0, 0): self._average_wait_time(simulation_hist),
             (0, 1): self._most_visited_station(simulation_hist),
-            (0, 2): self._last_station_visited(simulation_hist),
-            (1, 0): self._average_error(simulation_hist),
-            (1, 1): self._average_versus_expected(simulation_hist),
-            (1, 2): self._wait_time_distribution(simulation_hist),
+            (0, 2): self._last_station_distribution(simulation_hist),
+            (1, 0): self._average_error_from_mean(simulation_hist),
+            (1, 1): self._average_random_wait_time(simulation_hist),
+            (1, 2): self._map_wait_time_distribution(simulation_hist),
         }
 
     def execute_simulation(

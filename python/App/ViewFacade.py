@@ -13,30 +13,40 @@ TITLE_COLOR = (240, 210, 110)
 TITLE_SHADOW_COLOR = (0, 0, 0)
 PROMPT_COLOR = (205, 205, 215)
 TRACK_COLOR = (80, 80, 92)
-PIXEL_SIZE = 24
+PIXEL_SIZE = 15
 
 # Pixel-art steam train; each glyph is one pixel block, '.' is transparent.
 TRAIN_ART = [
-    "....SS..........",
-    "...SSSS.........",
-    "...SS...........",
-    "..CC............",
-    "..CC...DDDDDDD..",
-    ".BBBBBBBBBBBBB..",
-    ".BWWBBBBBBBBBB..",
-    ".BWWBBBBBBBBBB..",
-    ".BBBBBBBBBBBBB..",
-    ".FFFFFFFFFFFFF..",
-    "..OO...OO...OO..",
+    "......WWW...................",
+    ".....WWWWW..................",
+    ".....WWwww..................",
+    ".....DdD.....DDD............",
+    ".....DdD....DdddD...........",
+    "...DDDDDDDDDDDDDDDDDDDDDDD..",
+    "..DHHHHHHHHHHHHHHHHHHHHHHHD.",
+    "..DRRRRRRRRRRRRRRRGGGRRRRRD.",
+    "..DRRRRRRRRRRRRRRRGGGRRRRRD.",
+    "..DRRRRRRRRRRRRRRRGGGRRRRRD.",
+    "..DrrrrrrrrrrrrrrrrrrrrrrrD.",
+    "..YYYYYYYYYYYYYYYYYYYYYYYYY.",
+    "...DDDDDDDDDDDDDDDDDDDDDDD..",
+    "....OOO......OOO......OOO...",
+    "...OoSoO....OoSoO....OoSoO..",
+    "....OOO......OOO......OOO...",
 ]
 TRAIN_COLORS = {
-    "S": (225, 225, 230),
-    "C": (60, 60, 70),
-    "D": (150, 45, 45),
-    "B": (205, 70, 60),
-    "W": (150, 215, 235),
-    "F": (35, 35, 42),
-    "O": (70, 70, 82),
+    "W": (238, 238, 242),
+    "w": (192, 194, 202),
+    "D": (52, 52, 64),
+    "d": (92, 92, 108),
+    "H": (240, 122, 106),
+    "R": (206, 74, 60),
+    "r": (150, 46, 42),
+    "Y": (242, 200, 92),
+    "G": (150, 215, 235),
+    "O": (64, 64, 80),
+    "o": (122, 122, 140),
+    "S": (170, 172, 184),
 }
 
 ABOUT_TITLE_COLOR = (150, 215, 235)

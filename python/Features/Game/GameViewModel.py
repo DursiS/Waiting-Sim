@@ -20,6 +20,8 @@ PROMPT_COLOR = (200, 200, 60)
 PANEL_DIVIDER_COLOR = (70, 70, 80)
 MESSAGE_COLOR = (220, 220, 220)
 STATS_COLOR = (150, 215, 235)
+STATS_HEADER_COLOR = (250, 205, 100)
+STATS_LABEL_COLOR = (198, 208, 218)
 TOTAL_WAIT_COLOR = (255, 235, 150)
 BEST_SCORE_COLOR = (150, 235, 170)
 
@@ -213,12 +215,26 @@ class GameViewModel:
         max_width = TEXT_PANEL_WIDTH - PADDING
         y = PADDING
         for stat in self.wait_stats:
-            for line in self._wrap_text(stat, font, max_width):
-                rendered = font.render(line, True, STATS_COLOR)
+            if stat.endswith(":"):
+                y += 7
+                rendered = font.render(stat, True, STATS_HEADER_COLOR)
                 screen.blit(rendered, (text_x, y))
-                y += rendered.get_height() + 2
+                y += rendered.get_height() + 4
+            elif ": " in stat:
+                name, value = stat.rsplit(": ", 1)
+                name_rendered = font.render(name, True, STATS_LABEL_COLOR)
+                value_rendered = font.render(value, True, STATS_COLOR)
+                screen.blit(name_rendered, (text_x + 10, y))
+                screen.blit(
+                    value_rendered, (text_x + max_width - value_rendered.get_width(), y)
+                )
+                y += name_rendered.get_height() + 3
+            else:
+                rendered = font.render(stat, True, STATS_COLOR)
+                screen.blit(rendered, (text_x, y))
+                y += rendered.get_height() + 3
         if self.wait_stats:
-            y += 6
+            y += 8
             pygame.draw.line(
                 screen, PANEL_DIVIDER_COLOR, (text_x, y), (text_x + max_width, y), 1
             )
