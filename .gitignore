@@ -3,3 +3,5 @@ __pycache__/
 TODO
 README
 test/
+python/Data/highscores.json
+python/Data/player_data.json

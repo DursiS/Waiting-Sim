@@ -1,4 +1,5 @@
 import random
+from datetime import timedelta
 from typing import Any
 
 from Entities import Station, World, Player
@@ -15,6 +16,7 @@ class GameInteractor(GameInputBoundry):
     _dao: AccessWaitRulesInterface
     _presenter: GameOutputBoundry
     _directions: tuple[str, str, str, str]
+    _last_game: tuple[str, int, bool] | None
 
     def __init__(
         self, dao: AccessWaitRulesInterface, presenter: GameOutputBoundry
@@ -24,6 +26,7 @@ class GameInteractor(GameInputBoundry):
         self._presenter = presenter
         self._world = self._new_world()
         self._directions = ("N", "S", "W", "E")
+        self._last_game = None
 
     def _instantiate_station(self, record: dict) -> Station:
         """Build a Station from the wait rules entry <record>."""
@@ -43,6 +46,15 @@ class GameInteractor(GameInputBoundry):
         station.set_id(record["id"])
         return station
 
+    def _analyze_times(self, times: list[float]) -> tuple[timedelta, str]:
+        directions = ("N", "S", "W", "E")
+        deltas = [None if t is None else timedelta(seconds=t) for t in times]
+        candidates = [delta if delta is not None else timedelta.max for delta in deltas]
+        fastest_index = candidates.index(min(candidates))
+        fastest = deltas[fastest_index]
+        destination = directions[fastest_index]
+        return fastest, destination
+
     def _game_turn(self, player: Player, rand_arrival: bool) -> None:
         """Run one turn of the game, feeding the presenter as it goes."""
         self._presenter.clear_messages()
@@ -52,18 +64,25 @@ class GameInteractor(GameInputBoundry):
         t = self._get_wait_times(player, rand_arrival)
         self._presenter.say_waiting()
         self._presenter.show_loading(True)
-        t_waited, destination = player.wait(t)
+
+        t_waited, destination = self._analyze_times(t)
+        player.wait(t_waited)
+
         self._presenter.show_loading(False)
         self._presenter.say_sequenced_wait_times(dict(zip(self._directions, t)))
         self._presenter.say_time_waited(t_waited, destination)
+        if t_waited.total_seconds() >= self._station_risk(
+            getattr(player.station, destination)
+        ):
+            self._presenter.say_percentile_wait()
 
         starting_station = player.station
         idx = starting_station.id
         self._dao[idx]["times_visited"] += 1
         self._dao[idx]["waited_at"] += t_waited
 
-        first_to_arrive = getattr(starting_station, destination)
-        player.move(self._instantiate_station(self._dao.get_record(first_to_arrive)))
+        first_arrival = getattr(starting_station, destination)
+        player.move(self._instantiate_station(self._dao.get_record(first_arrival)))
 
         self._presenter.show_player_station(player.station)
         self._presenter.show_total_wait(player.time_waited.total_seconds())
@@ -105,9 +124,12 @@ class GameInteractor(GameInputBoundry):
     ) -> None:
         """Set up a game on <map_id> and explain it, leaving the first turn to
         a continue."""
+        self._last_game = (name, map_id, rand_arrival)
         self._load_map(map_id)
         self._present_wait_stats()
-        spawn = self._instantiate_station(self._dao.get_record(self._spawn_station_id()))
+        spawn = self._instantiate_station(
+            self._dao.get_record(self._spawn_station_id())
+        )
         player = Player(name=name, starting_station=spawn)
 
         self._save_player(player, rand_arrival)
@@ -150,14 +172,16 @@ class GameInteractor(GameInputBoundry):
             total_variance += self._dao.get_std_dev(record["id"]) ** 2
         return total_expectation, total_variance**0.5
 
+    def _station_risk(self, station_id: int) -> float:
+        """Return the 95th-percentile risk wait for the station with id <station_id>."""
+        return self._dao.get_expectation(station_id) + Z_95 * self._dao.get_std_dev(
+            station_id
+        )
+
     def _station_risks(self) -> list[tuple[str, float]]:
         """Return the name and 95th-percentile risk wait of every station."""
         return [
-            (
-                record["name"],
-                self._dao.get_expectation(record["id"])
-                + Z_95 * self._dao.get_std_dev(record["id"]),
-            )
+            (record["name"], self._station_risk(record["id"]))
             for record in self._dao.get_records()
         ]
 
@@ -174,12 +198,22 @@ class GameInteractor(GameInputBoundry):
             return
 
         data = self._dao.get_player_data()
-        self._load_map(data.get("map_id", self._dao.current_map_id()))
+        map_id = data.get("map_id", self._dao.current_map_id())
+        rand_arrival = data.get("rand_arrival", False)
+        self._last_game = (data["name"], map_id, rand_arrival)
+        self._load_map(map_id)
         player_station = self._instantiate_station(
             self._dao.get_record(data["station"])
         )
         player = Player.build_player_from_data(data, player_station)
-        self._game_turn(player, data.get("rand_arrival", False))
+        self._game_turn(player, rand_arrival)
+
+    def execute_restart(self) -> None:
+        """Replay the current game's map, name and random-arrival setting."""
+        if self._last_game is None:
+            return
+        name, map_id, rand_arrival = self._last_game
+        self.execute_new_game(name, map_id, rand_arrival)
 
     def execute_quit_game(self) -> None:
         """Quit the game"""
