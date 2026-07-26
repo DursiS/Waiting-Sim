@@ -34,21 +34,11 @@ class Player:
         self.stations_visited[new_station.id] = True
         return True
 
-    def wait(self, times: list[float | None]) -> tuple[timedelta, str]:
-        """Make the user wait for all the transportation to arrive.
+    def wait(self, fastest_time: timedelta) -> None:
+        """Make the user wait for all the transportation to arrive."""
 
-        <times> holds None for any direction with no adjacent station."""
-        directions = ("N", "S", "W", "E")
-
-        deltas = [None if t is None else timedelta(seconds=t) for t in times]
-        candidates = [delta if delta is not None else timedelta.max for delta in deltas]
-        fastest_index = candidates.index(min(candidates))
-        fastest = deltas[fastest_index]
-        destination = directions[fastest_index]
-
-        time.sleep(fastest.total_seconds())
-        self.time_waited += fastest
-        return fastest, destination
+        time.sleep(fastest_time.total_seconds())
+        self.time_waited += fastest_time
 
     def convert_to_data(self) -> dict:
         """Return this player as a dict."""

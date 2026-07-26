@@ -20,17 +20,6 @@ class SimulationInteractor(SimulationInputBoundry):
         self._dao = dao
         self._presenter = presenter
 
-    @dataclass
-    class StepData:
-        """Data collected from moving one station over."""
-
-        station_from_id: int
-        station_to_id: int
-        rule: str
-        wait_time: float
-        step: int
-        trial: int
-
     def _format_output_data(
         self, simulation_hist: list[list]
     ) -> dict[tuple[int, int], float]:
@@ -42,7 +31,6 @@ class SimulationInteractor(SimulationInputBoundry):
             (0, 2): self._last_station_distribution(simulation_hist),
             (1, 0): self._average_error_from_mean(simulation_hist),
             (1, 1): self._average_random_wait_time(simulation_hist),
-            (1, 2): self._map_wait_time_distribution(simulation_hist),
         }
 
     def execute_simulation(
@@ -63,11 +51,30 @@ class SimulationInteractor(SimulationInputBoundry):
 
         return self._format_output_data(simulation_history)
 
+    @dataclass
+    class StepData:
+        """Data collected from moving one station over."""
+
+        from_id: int
+        to_id: int
+        rule: str
+        wait_time: float
+        step: int
+        trial: int
+
     def _step(self, player: Player, rand_arrival: bool) -> StepData:
         """Arrive randomly at a station, get on the first train that arrives
         and report the data in <data>."""
 
         # look at current station the player is at
         #
+        # for record in self._dao.get_records():
+        #
+        #
+        # return StepData(from_id=player.current_station_id,
+        #                 to_id )
 
+        # record["name"],
+        # self._dao.get_expectation(record["id"]),
+        # self._dao.get_std_dev(record["id"]),
         raise NotImplementedError
