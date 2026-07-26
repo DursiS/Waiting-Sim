@@ -42,6 +42,10 @@ class GameOutputBoundry(ABC):
         """Show the current map's best highscore, or N/A if there is none."""
 
     @abstractmethod
+    def show_loading(self, loading: bool) -> None:
+        """Show or hide the animated waiting dots while waiting for trains."""
+
+    @abstractmethod
     def say_reached_end(self, total_wait: float) -> None:
         """Announce the player reached the end after <total_wait> seconds."""
 

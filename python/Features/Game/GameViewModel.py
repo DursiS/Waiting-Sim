@@ -34,6 +34,7 @@ class GameViewModel:
     wait_stats: list[str]
     total_wait: float
     best_highscore: str
+    loading: bool
     grid_width: int
     width: int
     height: int
@@ -52,6 +53,7 @@ class GameViewModel:
         self.wait_stats = []
         self.total_wait = 0.0
         self.best_highscore = "N/A"
+        self.loading = False
         self._running = False
         self._recompute_dimensions()
 
@@ -95,6 +97,10 @@ class GameViewModel:
     def set_best_highscore(self, best_highscore: str) -> None:
         """Set the current map's best highscore shown in the corner."""
         self.best_highscore = best_highscore
+
+    def set_loading(self, loading: bool) -> None:
+        """Show or hide the animated waiting dots on the latest message."""
+        self.loading = loading
 
     def _wrap_text(
         self, text: str, font: pygame.font.Font, max_width: int
@@ -218,7 +224,10 @@ class GameViewModel:
             )
             y += 8
 
-        for message in self.messages:
+        last_index = len(self.messages) - 1
+        for index, message in enumerate(self.messages):
+            if self.loading and index == last_index:
+                message += "." * (pygame.time.get_ticks() // 300 % 5 + 1)
             for line in self._wrap_text(message, font, max_width):
                 rendered = font.render(line, True, MESSAGE_COLOR)
                 screen.blit(rendered, (text_x, y))

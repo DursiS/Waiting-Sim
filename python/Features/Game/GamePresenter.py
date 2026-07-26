@@ -51,6 +51,10 @@ class GamePresenter(GameOutputBoundry):
         else:
             self.view_model.set_best_highscore(f"{best['name']} {best['time']:.1f}s")
 
+    def show_loading(self, loading: bool) -> None:
+        """Show or hide the animated waiting dots while waiting for trains."""
+        self.view_model.set_loading(loading)
+
     def say_reached_end(self, total_wait: float) -> None:
         """Announce the player reached the end after <total_wait> seconds."""
         self.view_model.add_message(
@@ -82,8 +86,10 @@ class GamePresenter(GameOutputBoundry):
         self.view_model.add_message(f"Wait times -- {', '.join(parts)}")
 
     def say_waiting(self) -> None:
-        """Add a message telling the user their ride is on its way."""
-        self.view_model.add_message("Waiting for your ride to arrive...")
+        """Add a message telling the user their ride is on its way.
+
+        The trailing dots are animated by the view model while loading."""
+        self.view_model.add_message("Waiting for your ride to arrive")
 
     def prompt_to_continue(self) -> None:
         """Add a message prompting the user to continue."""
