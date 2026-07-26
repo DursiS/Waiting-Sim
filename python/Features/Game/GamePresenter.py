@@ -70,7 +70,9 @@ class GamePresenter(GameOutputBoundry):
         self.view_model.add_message(
             f"You reached the end after waiting {total_wait:.1f}s total!"
         )
-        self.view_model.add_message("Press P for a new game or Q to quit.")
+        self.view_model.add_message(
+            "Press R to restart, P for a new game, or Q to quit."
+        )
 
     def say_expected_times(self, expected_times: dict[str, float | None]) -> None:
         """Add a message describing the expected
@@ -86,6 +88,10 @@ class GamePresenter(GameOutputBoundry):
         self.view_model.add_message(
             f"You waited {t_waited.total_seconds():.1f}s for your ride to arrive to {destination}"
         )
+
+    def say_percentile_wait(self) -> None:
+        """Add a message flagging a wait that landed in the 95th percentile."""
+        self.view_model.add_message("Unlucky! That was a 95th-percentile wait.")
 
     def say_sequenced_wait_times(self, wait_times: dict[str, float | None]) -> None:
         """Add a message describing the sampled wait time for each direction."""

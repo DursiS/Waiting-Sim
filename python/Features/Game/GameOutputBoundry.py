@@ -66,6 +66,10 @@ class GameOutputBoundry(ABC):
         """Add a message describing how long the player waited."""
 
     @abstractmethod
+    def say_percentile_wait(self) -> None:
+        """Add a message flagging a wait that landed in the 95th percentile."""
+
+    @abstractmethod
     def say_sequenced_wait_times(self, wait_times: dict[str, float | None]) -> None:
         """Add a message describing the sampled wait time for each direction."""
 

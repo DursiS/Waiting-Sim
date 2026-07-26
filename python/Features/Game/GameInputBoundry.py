@@ -20,6 +20,10 @@ class GameInputBoundry(ABC):
         """Continue a pre-existing game or start a new one otherwise."""
 
     @abstractmethod
+    def execute_restart(self) -> None:
+        """Replay the current game's map, name and random-arrival setting."""
+
+    @abstractmethod
     def execute_quit_game(self) -> None:
         """Quit the game."""
 

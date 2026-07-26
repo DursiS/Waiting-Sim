@@ -28,6 +28,10 @@ class GameController:
         """Continue an existing game."""
         self.input_boundry.execute_continue_game()
 
+    def handle_restart(self) -> None:
+        """Restart the current game with the same settings."""
+        self.input_boundry.execute_restart()
+
     def get_stations(self) -> list[Station]:
         """Return every station in the world."""
         return self.input_boundry.get_world_stations()

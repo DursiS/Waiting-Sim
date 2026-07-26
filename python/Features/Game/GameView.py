@@ -69,6 +69,8 @@ class GameView:
                         self.on_quit()
                     elif event.key == pygame.K_c:
                         self.on_continue()
+                    elif event.key == pygame.K_r:
+                        self.on_restart()
 
             if self._screen.get_size() != (
                 self._view_model.width,
@@ -165,3 +167,7 @@ class GameView:
     def on_continue(self) -> None:
         """Action Listener to continue"""
         self._run_in_background(self._controller.handle_continue_game)
+
+    def on_restart(self) -> None:
+        """Action Listener to restart the current game with the same settings"""
+        self._run_in_background(self._controller.handle_restart)

@@ -7,6 +7,8 @@ CELL_SIZE = 130
 PADDING = 40
 PROMPT_HEIGHT = 80
 TEXT_PANEL_WIDTH = 280
+MIN_GRID_WIDTH = 720
+PANEL_LINE_HEIGHT = 20
 BG_COLOR = (24, 24, 28)
 CELL_COLOR = (70, 130, 180)
 CURRENT_CELL_COLOR = (250, 180, 60)
@@ -60,11 +62,15 @@ class GameViewModel:
         self._recompute_dimensions()
 
     def _recompute_dimensions(self) -> None:
-        """Size the window to fit the station grid plus the side text panel."""
+        """Size the window to fit the station grid and the side text panel,
+        with room for the wait statistics, messages and the prompt bar."""
         x_m = max((s.coordinates[0] for s in self.stations), default=0)
         y_m = max((s.coordinates[1] for s in self.stations), default=0)
-        self.grid_width = (x_m + 1) * CELL_SIZE + PADDING * 2
-        self.height = (y_m + 1) * CELL_SIZE + PADDING * 2 + PROMPT_HEIGHT
+        self.grid_width = max((x_m + 1) * CELL_SIZE + PADDING * 2, MIN_GRID_WIDTH)
+        grid_height = (y_m + 1) * CELL_SIZE + PADDING * 2 + PROMPT_HEIGHT
+        panel_lines = 2 * len(self.stations) + 14
+        panel_height = PADDING * 2 + panel_lines * PANEL_LINE_HEIGHT
+        self.height = max(grid_height, panel_height)
         self.width = self.grid_width + TEXT_PANEL_WIDTH
 
     def set_stations(self, stations: list[Station]) -> None:
