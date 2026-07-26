@@ -52,7 +52,9 @@ class GameInteractor(GameInputBoundry):
         t = self._get_wait_times(player, rand_arrival)
         self._presenter.say_sequenced_wait_times(dict(zip(self._directions, t)))
         self._presenter.say_waiting()
+        self._presenter.show_loading(True)
         t_waited, destination = player.wait(t)
+        self._presenter.show_loading(False)
         self._presenter.say_time_waited(t_waited, destination)
 
         starting_station = player.station
