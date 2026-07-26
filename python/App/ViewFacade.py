@@ -43,11 +43,18 @@ ABOUT_TITLE_COLOR = (150, 215, 235)
 ABOUT_TEXT_COLOR = (220, 220, 225)
 ABOUT_TITLE = "About Waiting-Sim"
 ABOUT_LINES = [
-    "A small project for practicing Clean Architecture,",
-    "made for a University of Toronto software design course.",
+    "A game about waiting for transit. Each turn you wait at your",
+    "station for the next ride; the first to arrive carries you to",
+    "that neighbouring station. Expected and sampled wait times let",
+    "you read the network's rhythm -- reach the end with as little",
+    "total waiting as possible.",
     "",
-    "Author: Sean Dursi",
-    "GitHub: github.com/DursiS/Waiting-Sim",
+    "Simulation mode is a more serious sandbox: run many trials to",
+    "observe the waiting-time phenomena across a whole network.",
+    "",
+    "A Clean Architecture project for a University of Toronto",
+    "software design course.",
+    "Author: Sean Dursi     GitHub: github.com/DursiS/Waiting-Sim",
     "",
     "Press O to return to the menu.",
 ]
@@ -171,20 +178,20 @@ class ViewFacade:
         self._screen.blit(prompt, prompt.get_rect(center=(width // 2, height - 55)))
 
     def _draw_about(self) -> None:
-        """Draw the About screen with the project's intent, author and repo."""
+        """Draw the About screen: what the game and simulation are, then credits."""
         self._screen.fill(BG_COLOR)
         width, _ = self._screen.get_size()
 
-        title_font = pygame.font.SysFont("consolas", 44, bold=True)
+        title_font = pygame.font.SysFont("consolas", 40, bold=True)
         title = title_font.render(ABOUT_TITLE, True, ABOUT_TITLE_COLOR)
-        self._screen.blit(title, title.get_rect(center=(width // 2, 90)))
+        self._screen.blit(title, title.get_rect(center=(width // 2, 48)))
 
-        text_font = pygame.font.SysFont(None, 30)
-        y = 180
+        text_font = pygame.font.SysFont(None, 24)
+        y = 95
         for line in ABOUT_LINES:
             rendered = text_font.render(line, True, ABOUT_TEXT_COLOR)
             self._screen.blit(rendered, rendered.get_rect(center=(width // 2, y)))
-            y += 40
+            y += 28
 
     def on_quit(self) -> None:
         """Action Listener to quit"""

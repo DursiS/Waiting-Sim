@@ -169,16 +169,26 @@ class AccessWaitRules(AccessWaitRulesInterface):
         with open(HIGHSCORES_PATH, "r") as f:
             return json.load(f)
 
-    def save_highscore(self, map_id: int, name: str, time_waited: float) -> None:
+    def save_highscore(
+        self, map_id: int, rand_arrival: bool, name: str, time_waited: float
+    ) -> None:
         """Append <name>'s <time_waited> completion of map <map_id> to the
-        persistent highscores mapping."""
+        persistent highscores, kept separate per random-arrival setting."""
         highscores = self._load_highscores()
-        highscores.setdefault(str(map_id), []).append(
+        by_map = highscores.get(str(map_id))
+        if not isinstance(by_map, dict):
+            by_map = {}
+            highscores[str(map_id)] = by_map
+        by_map.setdefault(str(rand_arrival), []).append(
             {"name": name, "time": time_waited}
         )
         with open(HIGHSCORES_PATH, "w") as f:
             json.dump(highscores, f, indent=2)
 
-    def get_highscores(self, map_id: int) -> list[dict]:
-        """Return every recorded completion of the map with id <map_id>."""
-        return self._load_highscores().get(str(map_id), [])
+    def get_highscores(self, map_id: int, rand_arrival: bool) -> list[dict]:
+        """Return every recorded completion of map <map_id> for the given
+        random-arrival setting."""
+        by_map = self._load_highscores().get(str(map_id), {})
+        if not isinstance(by_map, dict):
+            return []
+        return by_map.get(str(rand_arrival), [])

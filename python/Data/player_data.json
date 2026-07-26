@@ -1,10 +1,12 @@
 {
   "name": "Me",
-  "id": 15623,
-  "station": 1,
-  "time_waited": 11.724123,
+  "id": 87566,
+  "station": 0,
+  "time_waited": 25.0,
   "stations_visited": {
     "1": true,
     "0": true
-  }
+  },
+  "map_id": 0,
+  "rand_arrival": false
 }

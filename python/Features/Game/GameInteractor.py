@@ -50,11 +50,11 @@ class GameInteractor(GameInputBoundry):
         self._presenter.say_expected_times(dict(zip(self._directions, E_t)))
 
         t = self._get_wait_times(player, rand_arrival)
-        self._presenter.say_sequenced_wait_times(dict(zip(self._directions, t)))
         self._presenter.say_waiting()
         self._presenter.show_loading(True)
         t_waited, destination = player.wait(t)
         self._presenter.show_loading(False)
+        self._presenter.say_sequenced_wait_times(dict(zip(self._directions, t)))
         self._presenter.say_time_waited(t_waited, destination)
 
         starting_station = player.station
@@ -67,23 +67,26 @@ class GameInteractor(GameInputBoundry):
 
         self._presenter.show_player_station(player.station)
         self._presenter.show_total_wait(player.time_waited.total_seconds())
-        self._presenter.show_best_highscore(self._best_highscore())
+        self._presenter.show_best_highscore(self._best_highscore(rand_arrival))
 
         if player.station.end:
-            self._win(player)
+            self._win(player, rand_arrival)
         else:
             self._save_player(player, rand_arrival)
             self._presenter.prompt_to_continue()
 
-    def _best_highscore(self) -> dict | None:
-        """Return the lowest-time completion of the current map, or None."""
-        highscores = self._dao.get_highscores(self._dao.current_map_id())
+    def _best_highscore(self, rand_arrival: bool) -> dict | None:
+        """Return the lowest-time completion of the current map for the given
+        random-arrival setting, or None."""
+        highscores = self._dao.get_highscores(self._dao.current_map_id(), rand_arrival)
         return min(highscores, key=lambda entry: entry["time"]) if highscores else None
 
-    def _win(self, player: Player) -> None:
+    def _win(self, player: Player, rand_arrival: bool) -> None:
         """End the game: record the highscore and clear the save."""
         total_wait = player.time_waited.total_seconds()
-        self._dao.save_highscore(self._dao.current_map_id(), player.name, total_wait)
+        self._dao.save_highscore(
+            self._dao.current_map_id(), rand_arrival, player.name, total_wait
+        )
         self._dao.erase_player_data()
         self._presenter.say_reached_end(total_wait)
 
@@ -109,6 +112,8 @@ class GameInteractor(GameInputBoundry):
 
         self._save_player(player, rand_arrival)
         self._presenter.show_player_station(spawn)
+        self._presenter.show_total_wait(player.time_waited.total_seconds())
+        self._presenter.show_best_highscore(self._best_highscore(rand_arrival))
         self._presenter.clear_messages()
         self._presenter.say_explanation()
         self._presenter.prompt_to_continue()
