@@ -1,7 +1,10 @@
+import random
 from dataclasses import dataclass
+from datetime import timedelta
 
 from Data import AccessWaitRulesInterface
-from Entities import Player
+from Entities import Player, Station
+from Entities.StepData import StepData
 from Features.Simulation import SimulationOutputBoundry
 from Features.Simulation.SimulationInputBoundry import SimulationInputBoundry
 
@@ -44,37 +47,42 @@ class SimulationInteractor(SimulationInputBoundry):
         for i in range(trials):
             trial_history = []
             for j in range(steps):
-                trial_history.append(self._step(rand_arrival))
+                trial_history.append(self._step(rand_arrival, j, i))
             simulation_history.append(trial_history)
 
         self._presenter.say_done_trials()
 
         return self._format_output_data(simulation_history)
 
-    @dataclass
-    class StepData:
-        """Data collected from moving one station over."""
-
-        from_id: int
-        to_id: int
-        rule: str
-        wait_time: float
-        step: int
-        trial: int
-
-    def _step(self, player: Player, rand_arrival: bool) -> StepData:
+    def _step(
+        self, player: Player, rand_arrival: bool, step_i: int, trial_i: int
+    ) -> StepData:
         """Arrive randomly at a station, get on the first train that arrives
         and report the data in <data>."""
+        directions = ("N", "S", "W", "E")
+        times = []
+        for record in self._dao.get_records():
+            train_arrival = self._dao.sample_rule(record["id"])
+            if rand_arrival:
+                player_arrival = random.uniform(0, train_arrival) / 2
+                while train_arrival < player_arrival:
+                    train_arrival = self._dao.sample_rule(record["id"])
+                train_arrival -= player_arrival
+            else:
+                times.append(self._dao.sample_rule(record["id"]))
 
-        # look at current station the player is at
-        #
-        # for record in self._dao.get_records():
-        #
-        #
-        # return StepData(from_id=player.current_station_id,
-        #                 to_id )
+        while min(times) != 0:
+            times[times.index(min(times))] = 10**10
+        fastest_index = times.index(min(times))
+        fastest = times[fastest_index]
 
-        # record["name"],
-        # self._dao.get_expectation(record["id"]),
-        # self._dao.get_std_dev(record["id"]),
-        raise NotImplementedError
+        destination = directions[fastest_index].toString()
+        player.station = getattr(player.station, destination)
+
+        return StepData(
+            from_station=player.station,
+            to_station=getattr(player.station, destination),
+            wait_time=fastest,
+            step_i=step_i,
+            trial_i=trial_i,
+        )
