@@ -32,6 +32,16 @@ class GamePresenter(GameOutputBoundry):
             f"Map total: {expectation:.1f} +/- {std_dev:.1f}s"
         )
 
+    def show_station_risks(self, station_risks: list[tuple[str, float]]) -> None:
+        """Add each station's 95th-percentile risk wait time."""
+        self.view_model.add_wait_stat("95th percentile risk:")
+        for name, risk in station_risks:
+            self.view_model.add_wait_stat(f"{name}: {risk:.1f}s")
+
+    def show_map_risk(self, risk: float) -> None:
+        """Add the map's 95th-percentile risk wait time."""
+        self.view_model.add_wait_stat(f"Map (95%): {risk:.1f}s")
+
     def show_stations(self, stations: list[Station]) -> None:
         """Show <stations> as the map the player is on."""
         self.view_model.set_stations(stations)
