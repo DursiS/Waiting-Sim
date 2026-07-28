@@ -1,6 +1,5 @@
 import random
 from datetime import timedelta
-from typing import Any
 
 from Entities import Station, World, Player
 from Features.Game import GameInputBoundry, GameOutputBoundry
@@ -15,7 +14,6 @@ class GameInteractor(GameInputBoundry):
     _world: World
     _dao: AccessWaitRulesInterface
     _presenter: GameOutputBoundry
-    _directions: tuple[str, str, str, str]
     _last_game: tuple[str, int, bool] | None
 
     def __init__(
@@ -25,7 +23,6 @@ class GameInteractor(GameInputBoundry):
         self._dao = dao
         self._presenter = presenter
         self._world = self._new_world()
-        self._directions = ("N", "S", "W", "E")
         self._last_game = None
 
     def _instantiate_station(self, record: dict) -> Station:
@@ -42,41 +39,44 @@ class GameInteractor(GameInputBoundry):
         station.set_id(record["id"])
         return station
 
-    def _analyze_times(self, times: list[float]) -> tuple[timedelta, str]:
-        directions = ("N", "S", "W", "E")
-        deltas = [None if t is None else timedelta(seconds=t) for t in times]
-        candidates = [delta if delta is not None else timedelta.max for delta in deltas]
-        fastest_index = candidates.index(min(candidates))
-        fastest = deltas[fastest_index]
-        destination = directions[fastest_index]
-        return fastest, destination
+    def _fastest(
+        self, wait_times: list[tuple[Station, float]]
+    ) -> tuple[timedelta, Station]:
+        """Return the shortest ride as a (wait, destination station) pair."""
+        destination, seconds = min(wait_times, key=lambda pair: pair[1])
+        return timedelta(seconds=seconds), destination
+
+    def _named(
+        self, wait_times: list[tuple[Station, float]]
+    ) -> list[tuple[str, float]]:
+        """Label each neighbour-wait pair with its station name for display."""
+        return [(station.name, seconds) for station, seconds in wait_times]
 
     def _game_turn(self, player: Player, rand_arrival: bool) -> None:
         """Run one turn of the game, feeding the presenter as it goes."""
         self._presenter.clear_messages()
-        E_t = self._get_expected_wait_times(player, rand_arrival)
-        self._presenter.say_expected_times(dict(zip(self._directions, E_t)))
+        expected = self._neighbour_expected_times(player, rand_arrival)
+        self._presenter.say_expected_times(self._named(expected))
 
-        t = self._get_wait_times(player, rand_arrival)
+        wait_times = self._neighbour_wait_times(player, rand_arrival)
         self._presenter.say_waiting()
         self._presenter.show_loading(True)
 
-        t_waited, destination = self._analyze_times(t)
+        t_waited, destination = self._fastest(wait_times)
         player.wait(t_waited)
 
         self._presenter.show_loading(False)
-        self._presenter.say_sequenced_wait_times(dict(zip(self._directions, t)))
-        self._presenter.say_time_waited(t_waited, destination)
+        self._presenter.say_sequenced_wait_times(self._named(wait_times))
+        self._presenter.say_time_waited(t_waited, destination.name)
 
-        arrival = self._world.neighbor(player.station, destination)
-        if t_waited.total_seconds() >= self._station_risk(arrival.id):
+        if t_waited.total_seconds() >= self._station_risk(destination.id):
             self._presenter.say_percentile_wait()
 
         idx = player.station.id
         self._dao[idx]["times_visited"] += 1
         self._dao[idx]["waited_at"] += t_waited
 
-        player.move(self._instantiate_station(self._dao.get_record(arrival.id)))
+        player.move(self._instantiate_station(self._dao.get_record(destination.id)))
 
         self._presenter.show_player_station(player.station)
         self._presenter.show_total_wait(player.time_waited.total_seconds())
@@ -270,37 +270,29 @@ class GameInteractor(GameInputBoundry):
         )
         return world
 
-    def _get_expected_wait_times(self, player: Player, rand_arrival: bool) -> list[Any]:
-        """Return the expected time to wait for the transportation in each
-        direction, None if there is no station adjacent in that direction."""
+    def _neighbour_expected_times(
+        self, player: Player, rand_arrival: bool
+    ) -> list[tuple[Station, float]]:
+        """Return each adjacent station paired with its expected ride time."""
         result = []
-        for direction in self._directions:
-            neighbor = self._world.neighbor(player.station, direction)
-            E_x = None
-
-            if neighbor is not None:
-                E_x = self._dao.get_expectation(neighbor.id)
-                if rand_arrival:
-                    E_arrival = random.uniform(0, E_x) / 2
-                    E_x -= E_arrival
-
-            result.append(E_x)
+        for neighbour in self._world.adjacent_stations(player.station):
+            expectation = self._dao.get_expectation(neighbour.id)
+            if rand_arrival:
+                expectation -= random.uniform(0, expectation) / 2
+            result.append((neighbour, expectation))
         return result
 
-    def _get_wait_times(self, player: Player, rand_arrival: bool) -> list[Any]:
-        """Sample the distributions for each direction's transportation,
-        None if there is no station adjacent in that direction."""
+    def _neighbour_wait_times(
+        self, player: Player, rand_arrival: bool
+    ) -> list[tuple[Station, float]]:
+        """Sample each adjacent station's ride time, paired with that station."""
         result = []
-        for direction in self._directions:
-            neighbor = self._world.neighbor(player.station, direction)
-            x = None
-
-            if neighbor is not None:
-                x = self._dao.sample_rule(neighbor.id)
-                if rand_arrival:
-                    arrival = random.uniform(0, x) / 2
-                    while x < arrival:
-                        x = self._dao.sample_rule(neighbor.id)
-                    x -= arrival
-            result.append(x)
+        for neighbour in self._world.adjacent_stations(player.station):
+            seconds = self._dao.sample_rule(neighbour.id)
+            if rand_arrival:
+                arrival = random.uniform(0, seconds) / 2
+                while seconds < arrival:
+                    seconds = self._dao.sample_rule(neighbour.id)
+                seconds -= arrival
+            result.append((neighbour, seconds))
         return result
