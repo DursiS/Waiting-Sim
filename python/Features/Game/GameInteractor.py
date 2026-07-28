@@ -36,10 +36,6 @@ class GameInteractor(GameInputBoundry):
             rule=record["rule"],
             times_visited=record["times_visited"],
             waited_at=record["waited_at"],
-            N=record["N"],
-            S=record["S"],
-            E=record["E"],
-            W=record["W"],
             coordinates=record["coordinates"],
             end=record["end"],
         )
@@ -71,18 +67,16 @@ class GameInteractor(GameInputBoundry):
         self._presenter.show_loading(False)
         self._presenter.say_sequenced_wait_times(dict(zip(self._directions, t)))
         self._presenter.say_time_waited(t_waited, destination)
-        if t_waited.total_seconds() >= self._station_risk(
-            getattr(player.station, destination)
-        ):
+
+        arrival = self._world.neighbor(player.station, destination)
+        if t_waited.total_seconds() >= self._station_risk(arrival.id):
             self._presenter.say_percentile_wait()
 
-        starting_station = player.station
-        idx = starting_station.id
+        idx = player.station.id
         self._dao[idx]["times_visited"] += 1
         self._dao[idx]["waited_at"] += t_waited
 
-        first_arrival = getattr(starting_station, destination)
-        player.move(self._instantiate_station(self._dao.get_record(first_arrival)))
+        player.move(self._instantiate_station(self._dao.get_record(arrival.id)))
 
         self._presenter.show_player_station(player.station)
         self._presenter.show_total_wait(player.time_waited.total_seconds())
@@ -262,40 +256,30 @@ class GameInteractor(GameInputBoundry):
         return distances
 
     def _adjacent_ids(self, station_id: int) -> list[int]:
-        """Return the ids of the stations adjacent to <station_id>."""
-        record = self._dao.get_record(station_id)
-        return [record[d] for d in self._directions if record[d] is not None]
+        """Return the ids of the stations adjacent to <station_id> on the grid."""
+        station = self._world.station_at(
+            tuple(self._dao.get_record(station_id)["coordinates"])
+        )
+        return [neighbor.id for neighbor in self._world.adjacent_stations(station)]
 
     def _new_world(self) -> World:
-        """Return the default world configuration."""
-        stations, coordinates = [], []
-        for record in self._dao.get_records():
-            new_station = self._instantiate_station(record)
-            stations.append(new_station)
-            coordinates.append(new_station.coordinates)
-
-        x_m, y_m = 0, 0
-        for coordinate in coordinates:
-            if coordinate[0] > x_m:
-                x_m = coordinate[0]
-            if coordinate[1] > y_m:
-                y_m = coordinate[1]
-
-        world = World(x_m + 1, y_m + 1)
-        world.add_stations(stations)
+        """Return a world built from the current map's station records."""
+        world = World()
+        world.add_stations(
+            [self._instantiate_station(record) for record in self._dao.get_records()]
+        )
         return world
 
     def _get_expected_wait_times(self, player: Player, rand_arrival: bool) -> list[Any]:
         """Return the expected time to wait for the transportation in each
         direction, None if there is no station adjacent in that direction."""
-        idx = player.station.id
         result = []
         for direction in self._directions:
-            neighbor_id = self._dao[idx][direction]
+            neighbor = self._world.neighbor(player.station, direction)
             E_x = None
 
-            if neighbor_id is not None:
-                E_x = self._dao.get_expectation(neighbor_id)
+            if neighbor is not None:
+                E_x = self._dao.get_expectation(neighbor.id)
                 if rand_arrival:
                     E_arrival = random.uniform(0, E_x) / 2
                     E_x -= E_arrival
@@ -306,18 +290,17 @@ class GameInteractor(GameInputBoundry):
     def _get_wait_times(self, player: Player, rand_arrival: bool) -> list[Any]:
         """Sample the distributions for each direction's transportation,
         None if there is no station adjacent in that direction."""
-        idx = player.station.id
         result = []
         for direction in self._directions:
-            neighbor_id = self._dao[idx][direction]
+            neighbor = self._world.neighbor(player.station, direction)
             x = None
 
-            if neighbor_id is not None:
-                x = self._dao.sample_rule(neighbor_id)
+            if neighbor is not None:
+                x = self._dao.sample_rule(neighbor.id)
                 if rand_arrival:
                     arrival = random.uniform(0, x) / 2
                     while x < arrival:
-                        x = self._dao.sample_rule(neighbor_id)
+                        x = self._dao.sample_rule(neighbor.id)
                     x -= arrival
             result.append(x)
         return result
