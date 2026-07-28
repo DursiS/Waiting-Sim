@@ -13,3 +13,7 @@ class SimulationController:
     def handle_simulation(self, trials: int, steps: int, rand_arrival: bool) -> None:
         """Simulation <trials> many trials with <steps> steps."""
         self.input_boundry.execute_simulation(trials, steps, rand_arrival)
+
+    def get_map_ids(self) -> list[int]:
+        """Return the ids of every selectable map."""
+        return self.input_boundry.get_map_ids()
