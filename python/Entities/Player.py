@@ -25,11 +25,7 @@ class Player:
         self.id = random.randint(1, 10**5)
 
     def move(self, new_station: Station) -> bool:
-        """Change the current station of this player, return True
-        if the direction and station was valid."""
-        if new_station.id not in self.station.get_adjacent_station_ids():
-            return False
-
+        """Move the player onto <new_station> and mark it visited."""
         self.station = new_station
         self.stations_visited[new_station.id] = True
         return True

@@ -12,7 +12,7 @@ class Station:
         - rule: The frozen wait-time distribution for this station
         - times_visited: The number of times this station has been visited
         - waited_at: The total time spent waiting at this station
-        - N, S, E, W: The adjacent station's id in that direction, or None
+        - coordinates: The (x, y) grid position that fixes this station's neighbours
         - end: Whether this station is the map's finish line
 
     Stations may have the same name but NOT the same id.
@@ -24,10 +24,6 @@ class Station:
     rule: rv_frozen
     times_visited: int
     waited_at: timedelta
-    N: int | None
-    S: int | None
-    E: int | None
-    W: int | None
     coordinates: tuple[int, int]
     end: bool
 
@@ -38,10 +34,6 @@ class Station:
         rule: rv_frozen,
         times_visited: int = 0,
         waited_at: timedelta = timedelta(),
-        N: int | None = None,
-        S: int | None = None,
-        E: int | None = None,
-        W: int | None = None,
         coordinates: tuple[int, int] = None,
         end: bool = False,
     ) -> None:
@@ -51,15 +43,11 @@ class Station:
         self.rule = rule
         self.times_visited = times_visited
         self.waited_at = waited_at
-        self.N = N
-        self.S = S
-        self.E = E
-        self.W = W
         self.coordinates = coordinates
         self.end = end
 
     def __eq__(self, other: object) -> bool:
-        """Return True if and only if <other> has the same name."""
+        """Return True if and only if <other> is a Station with the same id."""
         if not isinstance(other, Station):
             return False
         return self.id == other.id
@@ -79,7 +67,3 @@ class Station:
     def set_id(self, id: int) -> None:
         """Set id."""
         self.id = id
-
-    def get_adjacent_station_ids(self) -> list[int]:
-        """Return the ids of all stations adjacent to this station."""
-        return [d for d in (self.N, self.S, self.E, self.W) if d is not None]

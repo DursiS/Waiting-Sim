@@ -64,10 +64,6 @@ class AccessWaitRules(AccessWaitRulesInterface):
                 "rule": RULE_FACTORIES[record["rule_name"]](**record["rule_params"]),
                 "times_visited": record["times_visited"],
                 "waited_at": timedelta(seconds=record["waited_at"]),
-                "N": record["N"],
-                "S": record["S"],
-                "E": record["E"],
-                "W": record["W"],
                 "coordinates": tuple(record["coordinates"]),
                 "end": record.get("end", False),
             }
