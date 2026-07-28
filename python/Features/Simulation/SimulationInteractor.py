@@ -31,7 +31,7 @@ class SimulationInteractor(SimulationInputBoundry):
         return {
             (0, 0): self._average_wait_time(simulation_hist),
             (0, 1): self._most_visited_station(simulation_hist),
-            (0, 2): self._last_station_distribution(simulation_hist),
+            # (0, 2): self._last_station_distribution(simulation_hist),
             (1, 0): self._average_error_from_mean(simulation_hist),
             (1, 1): self._average_random_wait_time(simulation_hist),
         }
@@ -86,3 +86,7 @@ class SimulationInteractor(SimulationInputBoundry):
             step_i=step_i,
             trial_i=trial_i,
         )
+
+    def n_step_transition_p(self, _from: Station, _to: Station, n: int) -> None:
+        """Return the probability of being at <_to> within <n> steps
+        starting at <_from>."""
