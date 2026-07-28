@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from Data import AccessWaitRulesInterface
-from Entities import Player, Station
+from Entities import Player, Station, World
 from Entities.StepData import StepData
 from Features.Simulation import SimulationOutputBoundry
 from Features.Simulation.SimulationInputBoundry import SimulationInputBoundry
@@ -22,8 +22,31 @@ class SimulationInteractor(SimulationInputBoundry):
         <presenter> to report simulation results."""
         self._dao = dao
         self._presenter = presenter
+        self._world = self._new_world()
 
-    def _format_output_data(
+    def _instantiate_station(self, record: dict) -> Station:
+        """Build a Station from the wait rules entry <record>."""
+        station = Station(
+            name=record["name"],
+            rule_name=record["rule_name"],
+            rule=record["rule"],
+            times_visited=record["times_visited"],
+            waited_at=record["waited_at"],
+            coordinates=record["coordinates"],
+            end=record["end"],
+        )
+        station.set_id(record["id"])
+        return station
+
+    def _new_world(self) -> World:
+        """Return a world built from the current map's station records."""
+        world = World()
+        world.add_stations(
+            [self._instantiate_station(record) for record in self._dao.get_records()]
+        )
+        return world
+
+    def _output_grid_data(
         self, simulation_hist: list[list]
     ) -> dict[tuple[int, int], float]:
         """Digest raw StepData across trials and format it into
@@ -59,25 +82,24 @@ class SimulationInteractor(SimulationInputBoundry):
     ) -> StepData:
         """Arrive randomly at a station, get on the first train that arrives
         and report the data in <data>."""
-        directions = ("N", "S", "W", "E")
         times = []
-        for record in self._dao.get_records():
-            train_arrival = self._dao.sample_rule(record["id"])
+        for neighbour in self._world.adjacent_stations(player.station):
+            seconds = self._dao.sample_rule(neighbour.id)
             if rand_arrival:
-                player_arrival = random.uniform(0, train_arrival) / 2
-                while train_arrival < player_arrival:
-                    train_arrival = self._dao.sample_rule(record["id"])
-                train_arrival -= player_arrival
-            else:
-                times.append(self._dao.sample_rule(record["id"]))
+                arrival = random.uniform(0, seconds) / 2
+                while seconds < arrival:
+                    seconds = self._dao.sample_rule(neighbour.id)
+                seconds -= arrival
+            times.append((neighbour, seconds))
 
-        while min(times) != 0:
+        while min(times) == 0:
             times[times.index(min(times))] = 10**10
         fastest_index = times.index(min(times))
         fastest = times[fastest_index]
 
+        directions = ("N", "E", "S", "W")
         destination = directions[fastest_index].toString()
-        player.station = getattr(player.station, destination)
+        player.station = self._world.neighbor(player.station, destination)
 
         return StepData(
             from_station=player.station,
@@ -90,3 +112,4 @@ class SimulationInteractor(SimulationInputBoundry):
     def n_step_transition_p(self, _from: Station, _to: Station, n: int) -> None:
         """Return the probability of being at <_to> within <n> steps
         starting at <_from>."""
+        raise NotImplementedError
