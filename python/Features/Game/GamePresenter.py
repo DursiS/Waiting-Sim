@@ -74,13 +74,9 @@ class GamePresenter(GameOutputBoundry):
             "Press R to restart, P for a new game, or Q to quit."
         )
 
-    def say_expected_times(self, expected_times: dict[str, float | None]) -> None:
-        """Add a message describing the expected
-        wait time for each direction."""
-        parts = [
-            f"{direction}: {'N/A' if time is None else f'{time:.1f}s'}"
-            for direction, time in expected_times.items()
-        ]
+    def say_expected_times(self, expected_times: list[tuple[str, float]]) -> None:
+        """Add a message describing the expected wait time to each neighbour."""
+        parts = [f"{name}: {seconds:.1f}s" for name, seconds in expected_times]
         self.view_model.add_message(f"Expected wait times -- {', '.join(parts)}")
 
     def say_time_waited(self, t_waited: timedelta, destination: str) -> None:
@@ -93,12 +89,9 @@ class GamePresenter(GameOutputBoundry):
         """Add a message flagging a wait that landed in the 95th percentile."""
         self.view_model.add_message("Unlucky! That was a 95th-percentile wait.")
 
-    def say_sequenced_wait_times(self, wait_times: dict[str, float | None]) -> None:
-        """Add a message describing the sampled wait time for each direction."""
-        parts = [
-            f"{direction}: {'N/A' if time is None else f'{time:.1f}s'}"
-            for direction, time in wait_times.items()
-        ]
+    def say_sequenced_wait_times(self, wait_times: list[tuple[str, float]]) -> None:
+        """Add a message describing the sampled wait time to each neighbour."""
+        parts = [f"{name}: {seconds:.1f}s" for name, seconds in wait_times]
         self.view_model.add_message(f"Wait times -- {', '.join(parts)}")
 
     def say_waiting(self) -> None:
