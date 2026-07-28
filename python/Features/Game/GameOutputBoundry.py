@@ -58,8 +58,8 @@ class GameOutputBoundry(ABC):
         """Announce the player reached the end after <total_wait> seconds."""
 
     @abstractmethod
-    def say_expected_times(self, expected_times: dict[str, float | None]) -> None:
-        """Add a message describing the expected wait time for each direction."""
+    def say_expected_times(self, expected_times: list[tuple[str, float]]) -> None:
+        """Add a message describing the expected wait time to each neighbour."""
 
     @abstractmethod
     def say_time_waited(self, t_waited: timedelta, destination: str) -> None:
@@ -70,8 +70,8 @@ class GameOutputBoundry(ABC):
         """Add a message flagging a wait that landed in the 95th percentile."""
 
     @abstractmethod
-    def say_sequenced_wait_times(self, wait_times: dict[str, float | None]) -> None:
-        """Add a message describing the sampled wait time for each direction."""
+    def say_sequenced_wait_times(self, wait_times: list[tuple[str, float]]) -> None:
+        """Add a message describing the sampled wait time to each neighbour."""
 
     @abstractmethod
     def say_waiting(self) -> None:
