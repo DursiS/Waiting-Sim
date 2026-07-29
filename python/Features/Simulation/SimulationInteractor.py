@@ -133,6 +133,21 @@ class SimulationInteractor(SimulationInputBoundry):
         return float(integrate.quad(
             lambda t: rule_j.pdf(t) * np.prod([r.sf(t) for r in others]), lower, upper)[0])
 
+    def _fundamental_matrix(self) -> tuple[np.ndarray, list[Station]]:
+        """Return (N, transient) with N[i][j] = expected visits to transient j
+        before reaching the end, starting from i."""
+        transient = [s for s in self._world.get_stations() if not s.end]
+        index = {s.id: k for k, s in enumerate(transient)}
+        Q = np.zeros((len(transient), len(transient)))
+        for s in transient:
+            neighbours = self._world.adjacent_stations(s)
+            rules = [nb.rule for nb in neighbours]
+            for k, nb in enumerate(neighbours):
+                if nb.id in index:                       # skip the absorbing end column
+                    Q[index[s.id], index[nb.id]] = self._probability_is_fastest(
+                        rules[k], rules[:k] + rules[k + 1:])
+        return np.linalg.inv(np.eye(len(transient)) - Q), transient
+
     def _is_discrete(self, rule: rv_frozen) -> bool:
         """Return whether the frozen distribution <rule> is discrete."""
         return isinstance(rule.dist, stats.rv_discrete)
