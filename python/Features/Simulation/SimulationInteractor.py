@@ -143,7 +143,7 @@ class SimulationInteractor(SimulationInputBoundry):
             neighbours = self._world.adjacent_stations(s)
             rules = [nb.rule for nb in neighbours]
             for k, nb in enumerate(neighbours):
-                if nb.id in index:                       # skip the absorbing end column
+                if nb.id in index:
                     Q[index[s.id], index[nb.id]] = self._probability_is_fastest(
                         rules[k], rules[:k] + rules[k + 1:])
         return np.linalg.inv(np.eye(len(transient)) - Q), transient
