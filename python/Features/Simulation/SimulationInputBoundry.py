@@ -5,8 +5,10 @@ class SimulationInputBoundry(ABC):
     """An input boundry between Simulation Interactor and Controller."""
 
     @abstractmethod
-    def execute_simulation(self, trials: int, steps: int, rand_arrival: bool) -> None:
-        """Execute a new simulation."""
+    def execute_simulation(
+        self, trials: int, steps: int, rand_arrival: bool, map_id: int
+    ) -> None:
+        """Execute a new simulation on the map with id <map_id>."""
 
     @abstractmethod
     def get_map_ids(self) -> list[int]:

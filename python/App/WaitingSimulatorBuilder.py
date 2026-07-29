@@ -54,13 +54,13 @@ class WaitingSimulatorBuilder:
 
     def build_simulator(self) -> SimulationView:
         """Build a new SimulationView."""
-        sim_presenter = SimulationPresenter()
+        sim_view_model = SimulationViewModel()
+        sim_presenter = SimulationPresenter(sim_view_model)
         sim_interactor = SimulationInteractor(
             dao=AccessWaitRules(),
             presenter=sim_presenter,
         )
         sim_controller = SimulationController(sim_interactor)
-        sim_view_model = SimulationViewModel()
         simulation_view = SimulationView(
             controller=sim_controller,
             presenter=sim_presenter,
