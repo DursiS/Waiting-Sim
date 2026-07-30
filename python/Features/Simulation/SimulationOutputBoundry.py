@@ -10,9 +10,7 @@ class SimulationOutputBoundry(ABC):
         """Clear the running messages before a new simulation."""
 
     @abstractmethod
-    def say_executing_simulation(
-        self, trials: int, steps: int, rand_arrival: bool
-    ) -> None:
+    def say_executing_simulation(self, trials: int, steps: int) -> None:
         """Announce a simulation of <trials> trials of <steps> steps is running."""
 
     @abstractmethod

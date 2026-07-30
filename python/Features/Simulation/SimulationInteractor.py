@@ -55,37 +55,77 @@ class SimulationInteractor(SimulationInputBoundry):
         return world
 
     def _output_grid_data(
-        self, simulation_hist: list[list], steps: int, _from: Station
+        self, simulation_hist: list[list[StepData]], steps: int, _from: Station
     ) -> dict:
         """Digest raw StepData across trials and format it into
         a grid of just the essential information we need to present."""
-        E_t, E_t_rand_arrival = self._average_wait_time(simulation_hist)
         return {
-            (0, 0): E_t,
-            (0, 1): E_t_rand_arrival,
-            (0, 2): self._most_visited_station(simulation_hist),
-            (1, 0): self._average_error_from_mean(simulation_hist),
-            (1, 1): self._average_random_wait_time(simulation_hist),
-            (0, 2): self._n_step_transition_matrix(_from, steps),
+            (0, 0): self._average_wait_time(simulation_hist),
+            (0, 1): self._average_rand_wait_time(simulation_hist),
+            (1, 0): self._most_visited_station(simulation_hist),
+            (1, 1): self._error_distribution(simulation_hist),
+            (2, 0): self._n_step_transition_matrix(_from, steps),
+            (2, 1): self._fundamental_matrix(),
         }
 
-    def execute_simulation(
-        self, trials: int, steps: int, rand_arrival: bool, map_id: int
-    ) -> None:
+    def _average_wait_time(
+        self, simulation_hist: list[list[StepData]]
+    ) -> tuple[float, float]:
+        """Return the average wait-time across steps with std. dev
+        assuming no random-arrival."""
+        raise NotImplementedError
+
+    def _average_rand_wait_time(
+        self, simulation_hist: list[list[StepData]]
+    ) -> tuple[float, float]:
+        """Return the average wait-time across steps with std. dev
+        assuming THERE IS random-arrival."""
+        raise NotImplementedError
+
+    def _most_visited_station(self, simulation_hist: list[list[StepData]]) -> Station:
+        """Return the most visited Station from the simulation."""
+        count = {}
+        stations = {}
+        for trial in simulation_hist:
+            for i, step_data in enumerate(trial):
+                if i == 0:
+                    if step_data.from_station.id not in count:
+                        count[step_data.from_station.id] = 1
+                        stations[step_data.from_station.id] = step_data.from_station
+                    count[step_data.from_station.id] += 1
+                    if step_data.to_station.id not in count:
+                        count[step_data.to_station.id] = 1
+                    count[step_data.to_station.id] += 1
+                    stations[step_data.to_station.id] = step_data.to_station
+                else:
+                    if step_data.to_station.id not in count:
+                        count[step_data.to_station.id] = 1
+                    count[step_data.to_station.id] += 1
+                    stations[step_data.from_station.id] = step_data.from_station
+
+        return stations[np.argmax(count)]
+
+    def _error_distribution(
+        self, simulation_hist: list[list[StepData]]
+    ) -> tuple[float, float]:
+        """Return the average error from theoretical E_t and error std. dev."""
+        raise NotImplementedError
+
+    def execute_simulation(self, trials: int, steps: int, map_id: int) -> None:
         """Execute a new simulation on the map with id <map_id>."""
         self._dao.load_map(map_id)
         self._world = self._new_world()
         spawn = self._spawn_station()
 
         self._presenter.clear_messages()
-        self._presenter.say_executing_simulation(trials, steps, rand_arrival)
+        self._presenter.say_executing_simulation(trials, steps)
         player = Player(name=SIMULATION_NAME, starting_station=spawn)
 
         simulation_history = []
         for i in range(trials):
             trial_history = []
             for j in range(steps):
-                trial_history.append(self._step(player, rand_arrival, j, i))
+                trial_history.append(self._step(player, j, i))
             simulation_history.append(trial_history)
 
         self._presenter.say_done_trials()
@@ -107,7 +147,8 @@ class SimulationInteractor(SimulationInputBoundry):
         return self._world.get_station_by_id(spawn_id)
 
     def _distances_from(self, start_id: int) -> dict[int, int]:
-        """Return the step distance from <start_id> to every reachable station."""
+        """Return the step distance from <start_id> to every
+        reachable station."""
         distances = {start_id: 0}
         queue = [start_id]
         while queue:
@@ -119,19 +160,12 @@ class SimulationInteractor(SimulationInputBoundry):
                     queue.append(neighbour.id)
         return distances
 
-    def _step(
-        self, player: Player, rand_arrival: bool, step_i: int, trial_i: int
-    ) -> StepData:
-        """Arrive randomly at a station, get on the first train that arrives
+    def _step(self, player: Player, step_i: int, trial_i: int) -> StepData:
+        """Arrive at a station, get on the first train that arrives
         and report the data in <data>."""
         times = []
         for neighbour in self._world.adjacent_stations(player.station):
             seconds = self._dao.sample_rule(neighbour.id)
-            if rand_arrival:
-                arrival = random.uniform(0, seconds) / 2
-                while seconds < arrival:
-                    seconds = self._dao.sample_rule(neighbour.id)
-                seconds -= arrival
             times.append((neighbour, seconds))
 
         while min(times) == 0:
