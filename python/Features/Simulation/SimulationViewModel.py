@@ -19,10 +19,11 @@ MESSAGE_COLOR = (220, 220, 220)
 # The metrics the interactor reports, keyed by their (row, column) in the grid.
 DEFAULT_CELLS = {
     (0, 0): ("Avg wait time", "-"),
-    (0, 1): ("Most visited station", "-"),
-    (0, 2): ("Last-station spread", "-"),
-    (1, 0): ("Avg error from mean", "-"),
-    (1, 1): ("Avg random wait", "-"),
+    (0, 1): ("Avg wait (random arrival)", "-"),
+    (1, 0): ("Most visited station", "-"),
+    (1, 1): ("Squared-error spread", "-"),
+    (2, 0): ("n-step transition matrix", "-"),
+    (2, 1): ("Fundamental matrix", "-"),
 }
 
 
@@ -80,20 +81,22 @@ class SimulationViewModel:
     def _wrap_text(
         self, text: str, font: pygame.font.Font, max_width: int
     ) -> list[str]:
-        """Split <text> into lines that each fit within <max_width>."""
-        words = text.split(" ")
+        """Split <text> into lines that each fit <max_width>, honouring any
+        explicit newlines (so a matrix keeps its rows)."""
         lines = []
-        current = ""
-        for word in words:
-            candidate = f"{current} {word}".strip()
-            if font.size(candidate)[0] <= max_width:
-                current = candidate
-            else:
-                if current:
-                    lines.append(current)
-                current = word
-        if current:
-            lines.append(current)
+        for paragraph in text.split("\n"):
+            words = paragraph.split(" ")
+            current = ""
+            for word in words:
+                candidate = f"{current} {word}".strip()
+                if font.size(candidate)[0] <= max_width:
+                    current = candidate
+                else:
+                    if current:
+                        lines.append(current)
+                    current = word
+            if current:
+                lines.append(current)
         return lines
 
     def draw_grid(
@@ -103,6 +106,7 @@ class SimulationViewModel:
         value_font: pygame.font.Font,
     ) -> None:
         """Draw each metric as a labelled spreadsheet cell."""
+        matrix_font = pygame.font.SysFont("consolas", 14)
         for (row, col), (label, value) in self.cells.items():
             rect = pygame.Rect(
                 PADDING + col * CELL_SIZE,
@@ -120,11 +124,12 @@ class SimulationViewModel:
                 screen.blit(rendered, rendered.get_rect(midtop=(rect.centerx, y)))
                 y += rendered.get_height()
 
-            value_lines = self._wrap_text(value, value_font, max_text_width)
-            value_height = value_font.get_height() * len(value_lines)
+            cell_value_font = matrix_font if "\n" in value else value_font
+            value_lines = self._wrap_text(value, cell_value_font, max_text_width)
+            value_height = cell_value_font.get_height() * len(value_lines)
             value_y = y + (rect.bottom - 10 - y - value_height) // 2
             for line in value_lines:
-                rendered = value_font.render(line, True, VALUE_COLOR)
+                rendered = cell_value_font.render(line, True, VALUE_COLOR)
                 screen.blit(rendered, rendered.get_rect(midtop=(rect.centerx, value_y)))
                 value_y += rendered.get_height()
 

@@ -1,8 +1,3 @@
-import random
-from dataclasses import dataclass
-from datetime import timedelta
-from typing import Any
-
 import numpy as np
 from numpy import dtype, float64, ndarray
 from scipy import integrate, stats
@@ -15,6 +10,7 @@ from Features.Simulation import SimulationOutputBoundry
 from Features.Simulation.SimulationInputBoundry import SimulationInputBoundry
 
 SIMULATION_NAME = "SIMULATION"
+RESIDUAL_BATCH_SIZE = 8192
 
 
 class SimulationInteractor(SimulationInputBoundry):
@@ -22,6 +18,7 @@ class SimulationInteractor(SimulationInputBoundry):
 
     _dao: AccessWaitRulesInterface
     _presenter: SimulationOutputBoundry
+    _residual_pool: dict[tuple, list[float]]
 
     def __init__(
         self, dao: AccessWaitRulesInterface, presenter: SimulationOutputBoundry
@@ -30,6 +27,7 @@ class SimulationInteractor(SimulationInputBoundry):
         <presenter> to report simulation results."""
         self._dao = dao
         self._presenter = presenter
+        self._residual_pool = {}
         self._world = self._new_world()
 
     def _instantiate_station(self, record: dict) -> Station:
@@ -55,32 +53,42 @@ class SimulationInteractor(SimulationInputBoundry):
         return world
 
     def _output_grid_data(
-        self, simulation_hist: list[list[StepData]], steps: int, _from: Station
+        self,
+        simulation_hist: list[list[StepData]],
+        rand_arrival_sim_history: list[list[StepData]],
+        steps: int,
+        _from: Station,
     ) -> dict:
         """Digest raw StepData across trials and format it into
         a grid of just the essential information we need to present."""
+        expected_wait_times = self._expected_wait_times()
         return {
-            (0, 0): self._average_wait_time(simulation_hist),
-            (0, 1): self._average_rand_wait_time(simulation_hist),
+            (0, 0): self._average_wait_time(simulation_hist, steps),
+            (0, 1): self._average_wait_time(rand_arrival_sim_history, steps),
             (1, 0): self._most_visited_station(simulation_hist),
-            (1, 1): self._error_distribution(simulation_hist),
+            (1, 1): self._residual_squared_distribution(
+                simulation_hist, expected_wait_times
+            ),
             (2, 0): self._n_step_transition_matrix(_from, steps),
             (2, 1): self._fundamental_matrix(),
         }
 
+    def _expected_wait_times(self) -> dict[int, float]:
+        """Return each station's expected wait time on the loaded map, keyed by
+        station id, from the station's own rule."""
+        return {station.id: station.E_t() for station in self._world.get_stations()}
+
     def _average_wait_time(
-        self, simulation_hist: list[list[StepData]]
+        self, simulation_hist: list[list[StepData]], steps: int
     ) -> tuple[float, float]:
         """Return the average wait-time across steps with std. dev
         assuming no random-arrival."""
-        raise NotImplementedError
-
-    def _average_rand_wait_time(
-        self, simulation_hist: list[list[StepData]]
-    ) -> tuple[float, float]:
-        """Return the average wait-time across steps with std. dev
-        assuming THERE IS random-arrival."""
-        raise NotImplementedError
+        gross_wait_time = 0
+        for trial in simulation_hist:
+            for step_data in trial:
+                gross_wait_time += step_data.wait_time
+        num_steps = len(simulation_hist) * steps
+        raise np.round(gross_wait_time / num_steps, 2)
 
     def _most_visited_station(self, simulation_hist: list[list[StepData]]) -> Station:
         """Return the most visited Station from the simulation."""
@@ -105,11 +113,36 @@ class SimulationInteractor(SimulationInputBoundry):
 
         return stations[np.argmax(count)]
 
-    def _error_distribution(
-        self, simulation_hist: list[list[StepData]]
+    def _residual_squared_distribution(
+        self,
+        simulation_hist: list[list[StepData]],
+        expected_wait_times: dict[int, float],
     ) -> tuple[float, float]:
-        """Return the average error from theoretical E_t and error std. dev."""
-        raise NotImplementedError
+        """Return the average error from theoretical E_t and error std. dev
+        assuming no random_arrival"""
+        errors = []
+        for trial in simulation_hist:
+            for step_data in trial:
+                E_t = expected_wait_times[step_data.to_station.id]
+                errors.append((step_data.wait_time - E_t) ** 2)
+
+        errors = np.array(errors)
+        errors_squared = errors**2
+        mu = errors.mean()
+        std = errors_squared.mean() - mu**2
+        return mu, std
+
+    def _simulate(
+        self, trials: int, steps: int, player: Player, rand_arrival: bool
+    ) -> list[list[StepData]]:
+        """Return the results of a simulation."""
+        simulation_history = []
+        for i in range(trials):
+            trial_history = []
+            for j in range(steps):
+                trial_history.append(self._step(rand_arrival, player, j, i))
+            simulation_history.append(trial_history)
+        return simulation_history
 
     def execute_simulation(self, trials: int, steps: int, map_id: int) -> None:
         """Execute a new simulation on the map with id <map_id>."""
@@ -119,18 +152,21 @@ class SimulationInteractor(SimulationInputBoundry):
 
         self._presenter.clear_messages()
         self._presenter.say_executing_simulation(trials, steps)
+        self._presenter.show_loading(True)
         player = Player(name=SIMULATION_NAME, starting_station=spawn)
 
-        simulation_history = []
-        for i in range(trials):
-            trial_history = []
-            for j in range(steps):
-                trial_history.append(self._step(player, j, i))
-            simulation_history.append(trial_history)
+        sim_history = self._simulate(trials, steps, player, False)
+        rand_arrival_sim_history = self._simulate(trials, steps, player, True)
 
+        self._presenter.show_loading(False)
         self._presenter.say_done_trials()
         self._presenter.show_results(
-            self._output_grid_data(simulation_history, steps, spawn)
+            self._output_grid_data(
+                sim_history,
+                rand_arrival_sim_history,
+                steps,
+                spawn,
+            )
         )
 
     def get_map_ids(self) -> list[int]:
@@ -160,12 +196,21 @@ class SimulationInteractor(SimulationInputBoundry):
                     queue.append(neighbour.id)
         return distances
 
-    def _step(self, player: Player, step_i: int, trial_i: int) -> StepData:
-        """Arrive at a station, get on the first train that arrives
-        and report the data in <data>."""
+    def _step(
+        self, rand_arrival: bool, player: Player, step_i: int, trial_i: int
+    ) -> StepData:
+        """Arrive at a station, get on the first train that arrives and report
+        the data in <data>. With <rand_arrival> the passenger arrives at a
+        uniformly random moment, so each train's wait is its length-biased
+        residual rather than a full sampled interval."""
         times = []
         for neighbour in self._world.adjacent_stations(player.station):
-            seconds = self._dao.sample_rule(neighbour.id)
+            if rand_arrival:
+                seconds = self._random_arrival_wait(
+                    self._dao.get_record(neighbour.id)["rule"]
+                )
+            else:
+                seconds = self._dao.sample_rule(neighbour.id)
             times.append((neighbour, seconds))
 
         while min(times) == 0:
@@ -185,6 +230,28 @@ class SimulationInteractor(SimulationInputBoundry):
             trial_i=trial_i,
         )
 
+    def _random_arrival_wait(self, rule: rv_frozen) -> float:
+        """Return one length-biased residual wait for <rule>, served from a
+        vectorized batch cached per distribution so scipy's per-sample overhead
+        is paid once a batch rather than once a wait."""
+        key = (rule.dist.name, rule.args, tuple(sorted(rule.kwds.items())))
+        pool = self._residual_pool.get(key)
+        if not pool:
+            pool = self._draw_residual_batch(rule)
+            self._residual_pool[key] = pool
+        return pool.pop()
+
+    def _draw_residual_batch(self, rule: rv_frozen) -> list[float]:
+        """Draw a batch of length-biased waits at once, then wait a
+        uniform fraction of the kept gap."""
+        upper = float(rule.ppf(1 - 1e-9))
+        residuals: list[float] = []
+        while not residuals:
+            gaps = rule.rvs(size=RESIDUAL_BATCH_SIZE).astype(float)
+            kept = gaps[np.random.uniform(0, upper, gaps.size) <= gaps]
+            residuals = np.random.uniform(0, kept).tolist()
+        return residuals
+
     def _probability_faster_wait_time(
         self, station1_id: int, station2_id: int
     ) -> float:
@@ -192,7 +259,10 @@ class SimulationInteractor(SimulationInputBoundry):
         before station2's."""
         station1 = self._world.get_station_by_id(station1_id)
         station2 = self._world.get_station_by_id(station2_id)
-        return self._probability_is_fastest(station1.rule, station2.rule)
+        return self._probability_is_fastest(
+            station1.rule,
+            station2.rule,
+        )
 
     def _probability_is_fastest(
         self, rule_j: rv_frozen, others: list[rv_frozen]
