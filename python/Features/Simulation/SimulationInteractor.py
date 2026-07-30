@@ -1,6 +1,7 @@
 import random
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import Any
 
 import numpy as np
 from numpy import dtype, float64, ndarray
@@ -12,6 +13,8 @@ from Entities import Player, Station, World
 from Entities.StepData import StepData
 from Features.Simulation import SimulationOutputBoundry
 from Features.Simulation.SimulationInputBoundry import SimulationInputBoundry
+
+SIMULATION_NAME = "SIMULATION"
 
 
 class SimulationInteractor(SimulationInputBoundry):
@@ -52,35 +55,69 @@ class SimulationInteractor(SimulationInputBoundry):
         return world
 
     def _output_grid_data(
-        self, simulation_hist: list[list]
-    ) -> dict[tuple[int, int], float]:
+        self, simulation_hist: list[list], steps: int, _from: Station
+    ) -> dict:
         """Digest raw StepData across trials and format it into
         a grid of just the essential information we need to present."""
+        E_t, E_t_rand_arrival = self._average_wait_time(simulation_hist)
         return {
-            (0, 0): self._average_wait_time(simulation_hist),
-            (0, 1): self._most_visited_station(simulation_hist),
-            # (0, 2): self._last_station_distribution(simulation_hist),
+            (0, 0): E_t,
+            (0, 1): E_t_rand_arrival,
+            (0, 2): self._most_visited_station(simulation_hist),
             (1, 0): self._average_error_from_mean(simulation_hist),
             (1, 1): self._average_random_wait_time(simulation_hist),
+            (0, 2): self._n_step_transition_matrix(_from, steps),
         }
 
     def execute_simulation(
-        self, trials: int, steps: int, rand_arrival: bool
-    ) -> dict[tuple[int, int], float]:
-        """Execute a new simulation."""
+        self, trials: int, steps: int, rand_arrival: bool, map_id: int
+    ) -> None:
+        """Execute a new simulation on the map with id <map_id>."""
+        self._dao.load_map(map_id)
+        self._world = self._new_world()
+        spawn = self._spawn_station()
+
         self._presenter.clear_messages()
         self._presenter.say_executing_simulation(trials, steps, rand_arrival)
+        player = Player(name=SIMULATION_NAME, starting_station=spawn)
 
         simulation_history = []
         for i in range(trials):
             trial_history = []
             for j in range(steps):
-                trial_history.append(self._step(rand_arrival, j, i))
+                trial_history.append(self._step(player, rand_arrival, j, i))
             simulation_history.append(trial_history)
 
         self._presenter.say_done_trials()
+        self._presenter.show_results(
+            self._output_grid_data(simulation_history, steps, spawn)
+        )
 
-        return self._format_output_data(simulation_history)
+    def get_map_ids(self) -> list[int]:
+        """Return the ids of every selectable map."""
+        return self._dao.map_ids()
+
+    def _spawn_station(self) -> Station:
+        """Return the station farthest from the map's end, matching the game
+        spawn, so a trial starts as deep in the network as possible."""
+        end_id = next(s.id for s in self._world.get_stations() if s.end)
+        distances = self._distances_from(end_id)
+        farthest = max(distances.values())
+        spawn_id = min(sid for sid, dist in distances.items() if dist == farthest)
+        return self._world.get_station_by_id(spawn_id)
+
+    def _distances_from(self, start_id: int) -> dict[int, int]:
+        """Return the step distance from <start_id> to every reachable station."""
+        distances = {start_id: 0}
+        queue = [start_id]
+        while queue:
+            current = queue.pop(0)
+            station = self._world.get_station_by_id(current)
+            for neighbour in self._world.adjacent_stations(station):
+                if neighbour.id not in distances:
+                    distances[neighbour.id] = distances[current] + 1
+                    queue.append(neighbour.id)
+        return distances
 
     def _step(
         self, player: Player, rand_arrival: bool, step_i: int, trial_i: int
@@ -123,29 +160,43 @@ class SimulationInteractor(SimulationInputBoundry):
         station2 = self._world.get_station_by_id(station2_id)
         return self._probability_is_fastest(station1.rule, station2.rule)
 
-    def _probability_is_fastest(self, rule_j: rv_frozen, others: list[rv_frozen]) -> float:
+    def _probability_is_fastest(
+        self, rule_j: rv_frozen, others: list[rv_frozen]
+    ) -> float:
         """P(X_j < every rule in <others>) by conditioning on X_j = t,
-         then the survival probabilities multiply."""
+        then the survival probabilities multiply."""
         if self._is_discrete(rule_j):
-            return float(sum(rule_j.pmf(t) * np.prod([r.sf(t) for r in others])
-                             for t in self._discrete_support(rule_j)))
+            return float(
+                sum(
+                    rule_j.pmf(t) * np.prod([r.sf(t) for r in others])
+                    for t in self._discrete_support(rule_j)
+                )
+            )
         lower, upper = self._continuous_bounds(rule_j)
-        return float(integrate.quad(
-            lambda t: rule_j.pdf(t) * np.prod([r.sf(t) for r in others]), lower, upper)[0])
+        return float(
+            integrate.quad(
+                lambda t: rule_j.pdf(t) * np.prod([r.sf(t) for r in others]),
+                lower,
+                upper,
+            )[0]
+        )
 
     def _fundamental_matrix(self) -> tuple[np.ndarray, list[Station]]:
         """Return (N, transient) with N[i][j] = expected visits to transient j
-        before reaching the end, starting from i."""
+        before reaching the end, starting from state i."""
         transient = [s for s in self._world.get_stations() if not s.end]
-        index = {s.id: k for k, s in enumerate(transient)}
+        index = {station.id: k for k, station in enumerate(transient)}
         Q = np.zeros((len(transient), len(transient)))
-        for s in transient:
-            neighbours = self._world.adjacent_stations(s)
-            rules = [nb.rule for nb in neighbours]
-            for k, nb in enumerate(neighbours):
-                if nb.id in index:
-                    Q[index[s.id], index[nb.id]] = self._probability_is_fastest(
-                        rules[k], rules[:k] + rules[k + 1:])
+        for station in transient:
+            neighbours = self._world.adjacent_stations(station)
+            rules = [neighbour.rule for neighbour in neighbours]
+            for k, neighbour in enumerate(neighbours):
+                if neighbour.id in index:
+                    Q[index[station.id], index[neighbour.id]] = (
+                        self._probability_is_fastest(
+                            rules[k], rules[:k] + rules[k + 1 :]
+                        )
+                    )
         return np.linalg.inv(np.eye(len(transient)) - Q), transient
 
     def _is_discrete(self, rule: rv_frozen) -> bool:
@@ -182,5 +233,3 @@ class SimulationInteractor(SimulationInputBoundry):
                     [self._probability_faster_wait_time(i, j) for j in adjacent_ids]
                 )
         return np.linalg.matrix_power(Q, n)
-
-    def
