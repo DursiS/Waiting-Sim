@@ -25,6 +25,10 @@ class SimulationPresenter(SimulationOutputBoundry):
         """Announce every trial has finished and results are being digested."""
         self.view_model.add_message("Done. Digesting results.")
 
+    def show_loading(self, loading: bool) -> None:
+        """Show or hide the animated dots while trials are running."""
+        self.view_model.set_loading(loading)
+
     def show_results(self, grid: dict[tuple[int, int], object]) -> None:
         """Display the digested metric grid, keyed by (row, column)."""
         for (row, col), value in grid.items():

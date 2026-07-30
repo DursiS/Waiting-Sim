@@ -18,5 +18,9 @@ class SimulationOutputBoundry(ABC):
         """Announce every trial has finished and results are being digested."""
 
     @abstractmethod
+    def show_loading(self, loading: bool) -> None:
+        """Show or hide the animated dots while trials are running."""
+
+    @abstractmethod
     def show_results(self, grid: dict[tuple[int, int], object]) -> None:
         """Display the digested metric grid, keyed by (row, column)."""

@@ -203,8 +203,9 @@ class SimulationInteractor(SimulationInputBoundry):
         the data in <data>. With <rand_arrival> the passenger arrives at a
         uniformly random moment, so each train's wait is its length-biased
         residual rather than a full sampled interval."""
+        from_station = player.station
         times = []
-        for neighbour in self._world.adjacent_stations(player.station):
+        for neighbour in self._world.adjacent_stations(from_station):
             if rand_arrival:
                 seconds = self._random_arrival_wait(
                     self._dao.get_record(neighbour.id)["rule"]
@@ -213,18 +214,12 @@ class SimulationInteractor(SimulationInputBoundry):
                 seconds = self._dao.sample_rule(neighbour.id)
             times.append((neighbour, seconds))
 
-        while min(times) == 0:
-            times[times.index(min(times))] = 10**10
-        fastest_index = times.index(min(times))
-        fastest = times[fastest_index]
-
-        directions = ("N", "E", "S", "W")
-        destination = directions[fastest_index].toString()
-        player.station = self._world.neighbor(player.station, destination)
+        destination, fastest = min(times, key=lambda pair: pair[1])
+        player.station = destination
 
         return StepData(
-            from_station=player.station,
-            to_station=getattr(player.station, destination),
+            from_station=from_station,
+            to_station=destination,
             wait_time=fastest,
             step_i=step_i,
             trial_i=trial_i,
