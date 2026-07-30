@@ -36,6 +36,7 @@ class SimulationViewModel:
     grid_width: int
     width: int
     height: int
+    loading: bool
     _running: bool
 
     def __init__(
@@ -46,8 +47,13 @@ class SimulationViewModel:
         """Create a ViewModel showing <cells> as a grid of labelled metrics."""
         self.cells = cells or dict(DEFAULT_CELLS)
         self.messages = messages or []
+        self.loading = False
         self._running = False
         self._recompute_dimensions()
+
+    def set_loading(self, loading: bool) -> None:
+        """Show or hide the animated dots on the last message."""
+        self.loading = loading
 
     def _recompute_dimensions(self) -> None:
         """Size the window to fit the metric grid and the side text panel,
@@ -152,7 +158,10 @@ class SimulationViewModel:
         text_x = panel_x + PADDING // 2
         max_width = TEXT_PANEL_WIDTH - PADDING
         y = PADDING
-        for message in self.messages:
+        last_index = len(self.messages) - 1
+        for index, message in enumerate(self.messages):
+            if self.loading and index == last_index:
+                message += "." * (pygame.time.get_ticks() // 300 % 5 + 1)
             for line in self._wrap_text(message, font, max_width):
                 rendered = font.render(line, True, MESSAGE_COLOR)
                 screen.blit(rendered, (text_x, y))
