@@ -67,3 +67,7 @@ class Station:
     def set_id(self, id: int) -> None:
         """Set id."""
         self.id = id
+
+    def E_t(self) -> float:
+        """Return the expected wait time: the mean of this station's rule."""
+        return float(self.rule.mean())
