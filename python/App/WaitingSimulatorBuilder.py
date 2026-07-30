@@ -1,4 +1,4 @@
-from App import ViewFacade, ViewModelFacade
+from App import ViewFacade
 from Data import AccessWaitRules
 from Features.Game import (
     GameController,
@@ -22,16 +22,11 @@ class WaitingSimulatorBuilder:
     those trials."""
 
     view_facade: ViewFacade
-    view_model_facade: ViewModelFacade
 
     def __init__(self) -> None:
-
-        self.view_model_facade = ViewModelFacade(
-            simulation_view_model=SimulationViewModel(),
-        )
         self.view_facade = ViewFacade(
-            self.view_model_facade,
             game_view_factory=self.build_game,
+            simulation_view_factory=self.build_simulation,
         )
 
     def build_game(self) -> GameView:
@@ -52,7 +47,7 @@ class WaitingSimulatorBuilder:
         )
         return game_view
 
-    def build_simulator(self) -> SimulationView:
+    def build_simulation(self) -> SimulationView:
         """Build a new SimulationView."""
         sim_view_model = SimulationViewModel()
         sim_presenter = SimulationPresenter(sim_view_model)

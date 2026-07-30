@@ -2,8 +2,8 @@ from typing import Callable
 
 import pygame
 
-from App import ViewModelFacade
 from Features.Game import GameView
+from Features.Simulation import SimulationView
 
 
 MENU_WIDTH = 760
@@ -74,8 +74,8 @@ class ViewFacade:
     """Manage the main menu model and transition between feature
     view models."""
 
-    view_model_facade: ViewModelFacade
     _game_view_factory: Callable[[], GameView]
+    _simulation_view_factory: Callable[[], SimulationView]
     _busy: bool
     _running: bool
     _showing_about: bool
@@ -83,11 +83,11 @@ class ViewFacade:
 
     def __init__(
         self,
-        view_model_facade: ViewModelFacade,
         game_view_factory: Callable[[], GameView],
+        simulation_view_factory: Callable[[], SimulationView],
     ) -> None:
-        self.view_model_facade = view_model_facade
         self._game_view_factory = game_view_factory
+        self._simulation_view_factory = simulation_view_factory
         self._busy = False
         self._running = True
         self._showing_about = False
@@ -125,19 +125,11 @@ class ViewFacade:
             self._screen = pygame.display.set_mode((width, height))
 
     def _draw(self) -> None:
-        """Draw the About screen, the active simulation, or the default menu."""
-        simulation_view_model = self.view_model_facade.simulation_view_model
-
+        """Draw the About screen or the default menu."""
+        self._resize_if_needed(MENU_WIDTH, MENU_HEIGHT)
         if self._showing_about:
-            self._resize_if_needed(MENU_WIDTH, MENU_HEIGHT)
             self._draw_about()
-        elif simulation_view_model._running:
-            self._resize_if_needed(
-                simulation_view_model.width, simulation_view_model.height
-            )
-            simulation_view_model.draw(self._screen)
         else:
-            self._resize_if_needed(MENU_WIDTH, MENU_HEIGHT)
             self._draw_menu()
 
     def _draw_train(self, top_left_x: int, top_left_y: int, pixel: int) -> None:
@@ -238,12 +230,15 @@ class ViewFacade:
             self._busy = False
 
     def on_simulation(self) -> None:
-        """Action Listener to start simulation mode"""
+        """Action Listener to launch simulation mode. Blocks until the user
+        quits back out of it, then reclaims the display for the menu."""
         if self._busy:
             return
         self._busy = True
         try:
             self._showing_about = False
-            self.view_model_facade.start_simulation()
+            self._simulation_view_factory()
+            self._screen = pygame.display.set_mode((MENU_WIDTH, MENU_HEIGHT))
+            pygame.display.set_caption("Waiting-Sim")
         finally:
             self._busy = False
