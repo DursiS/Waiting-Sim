@@ -54,6 +54,10 @@ class GameOutputBoundry(ABC):
         """Show or hide the animated waiting dots while waiting for trains."""
 
     @abstractmethod
+    def show_incoming_train(self, source: Station, seconds: float) -> None:
+        """Animate the fastest train arriving from <source> over <seconds>."""
+
+    @abstractmethod
     def say_reached_end(self, total_wait: float) -> None:
         """Announce the player reached the end after <total_wait> seconds."""
 
