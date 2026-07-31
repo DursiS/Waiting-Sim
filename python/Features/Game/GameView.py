@@ -112,9 +112,10 @@ class GameView:
             }.get(self._input_mode, "")
         font = pygame.font.SysFont(None, 28)
         text = font.render(f"{label}: {self._input_buffer}_", True, INPUT_TEXT_COLOR)
-        box = text.get_rect(topleft=(20, 20)).inflate(20, 10)
+        box = text.get_rect().inflate(20, 10)
+        box.topright = (self._screen.get_width() - 20, 20)
         pygame.draw.rect(self._screen, INPUT_BG_COLOR, box)
-        self._screen.blit(text, (box.x + 10, box.y + 5))
+        self._screen.blit(text, text.get_rect(center=box.center))
 
     def _handle_text_input(self, event: pygame.event.Event) -> None:
         """Handle a keypress while a field is being typed into."""
