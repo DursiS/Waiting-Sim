@@ -5,8 +5,7 @@ import pygame
 from Entities import Station
 
 
-X_SPACING = 240
-Y_SPACING = 170
+ROAD_LENGTH = 220
 MARGIN_X = 130
 HUD_TOP_HEIGHT = 92
 NODE_TOP_PAD = 80
@@ -61,6 +60,7 @@ class GameViewModel:
     incoming_train: tuple[Station, Station | None, int, float] | None
     width: int
     height: int
+    road_length: float
     _running: bool
 
     def __init__(
@@ -78,6 +78,7 @@ class GameViewModel:
         self.best_highscore = "N/A"
         self.loading = False
         self.incoming_train = None
+        self.road_length = ROAD_LENGTH
         self._running = False
         self._recompute_dimensions()
 
@@ -85,10 +86,12 @@ class GameViewModel:
         """Size the window to the station layout plus the HUD bars."""
         x_m = max((s.coordinates[0] for s in self.stations), default=0)
         y_m = max((s.coordinates[1] for s in self.stations), default=0)
-        self.width = max(MARGIN_X * 2 + x_m * X_SPACING, MIN_WIDTH)
+        self.width = max(int(MARGIN_X * 2 + x_m * self.road_length), MIN_WIDTH)
         self.height = max(
-            HUD_TOP_HEIGHT + NODE_TOP_PAD + y_m * Y_SPACING
-            + NODE_BOTTOM_PAD + BOTTOM_BAR_HEIGHT,
+            int(
+                HUD_TOP_HEIGHT + NODE_TOP_PAD + y_m * self.road_length
+                + NODE_BOTTOM_PAD + BOTTOM_BAR_HEIGHT
+            ),
             MIN_HEIGHT,
         )
 
@@ -141,9 +144,16 @@ class GameViewModel:
         """Return the screen centre of <station> from its grid coordinates."""
         x, y = station.coordinates
         return (
-            MARGIN_X + x * X_SPACING,
-            HUD_TOP_HEIGHT + NODE_TOP_PAD + y * Y_SPACING,
+            int(MARGIN_X + x * self.road_length),
+            int(HUD_TOP_HEIGHT + NODE_TOP_PAD + y * self.road_length),
         )
+
+    def _road_length(self, from_station: Station, to_station: Station) -> float:
+        """Return the road length from <from_station> to <to_station>.
+
+        Per-connection and per-direction lengths will be stored here; a single
+        shared length is used for every road for now."""
+        return self.road_length
 
     def _pairs(self) -> list[tuple[Station, Station]]:
         """Return each grid-adjacent station pair exactly once."""
@@ -168,33 +178,34 @@ class GameViewModel:
         return text + "..."
 
     def _draw_tracks(self, screen: pygame.Surface) -> None:
-        """Draw every connection as two arrowed one-way tracks."""
+        """Draw every connection as two one-way roads, each drawn to its own
+        (currently shared) length with the arrow at its midpoint."""
         for a, b in self._pairs():
             ax, ay = self._node_pos(a)
             bx, by = self._node_pos(b)
-            dx, dy = bx - ax, by - ay
-            length = math.hypot(dx, dy) or 1
-            ux, uy = dx / length, dy / length
+            gap = math.hypot(bx - ax, by - ay) or 1
+            ux, uy = (bx - ax) / gap, (by - ay) / gap
             px, py = -uy, ux
-            start = (ax + ux * NODE_RADIUS, ay + uy * NODE_RADIUS)
-            end = (bx - ux * NODE_RADIUS, by - uy * NODE_RADIUS)
-            self._draw_one_way(screen, start, end, (px, py), (ux, uy))
-            self._draw_one_way(screen, end, start, (-px, -py), (-ux, -uy))
+            self._draw_road(screen, (ax, ay), (ux, uy), (px, py), self._road_length(a, b))
+            self._draw_road(screen, (bx, by), (-ux, -uy), (-px, -py), self._road_length(b, a))
 
-    def _draw_one_way(
+    def _draw_road(
         self,
         screen: pygame.Surface,
-        start: tuple[float, float],
-        end: tuple[float, float],
-        perp: tuple[float, float],
+        origin: tuple[float, float],
         direction: tuple[float, float],
+        perp: tuple[float, float],
+        length: float,
     ) -> None:
-        """Draw a single lane offset to one side, arrowed along <direction>."""
-        off = TRACK_GAP / 2
-        s = (start[0] + perp[0] * off, start[1] + perp[1] * off)
-        e = (end[0] + perp[0] * off, end[1] + perp[1] * off)
-        pygame.draw.line(screen, TRACK_COLOR, s, e, TRACK_WIDTH)
-        mid = ((s[0] + e[0]) / 2, (s[1] + e[1]) / 2)
+        """Draw a one-way road of <length> from <origin> along <direction>,
+        offset to its own lane, with the direction arrow at its midpoint."""
+        ux, uy = direction
+        ox = origin[0] + perp[0] * TRACK_GAP / 2
+        oy = origin[1] + perp[1] * TRACK_GAP / 2
+        start = (ox + ux * NODE_RADIUS, oy + uy * NODE_RADIUS)
+        end = (ox + ux * (length - NODE_RADIUS), oy + uy * (length - NODE_RADIUS))
+        pygame.draw.line(screen, TRACK_COLOR, start, end, TRACK_WIDTH)
+        mid = (ox + ux * length / 2, oy + uy * length / 2)
         self._draw_arrow(screen, mid, direction)
 
     def _draw_arrow(
