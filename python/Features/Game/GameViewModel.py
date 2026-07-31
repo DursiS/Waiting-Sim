@@ -18,8 +18,8 @@ TRACK_GAP = 9
 TRACK_WIDTH = 3
 ARROW_LEN = 9
 ARROW_WID = 6
-TRAIN_W = 30
-TRAIN_H = 16
+TRAIN_W = 44
+TRAIN_H = 13
 
 BG_COLOR = (16, 18, 24)
 HUD_COLOR = (10, 12, 16)
@@ -35,9 +35,13 @@ LABEL_COLOR = (208, 220, 232)
 CURRENT_LABEL_COLOR = (255, 224, 150)
 END_LABEL_COLOR = (150, 235, 175)
 SUB_LABEL_COLOR = (150, 162, 178)
-TRAIN_COLOR = (245, 205, 90)
-TRAIN_BORDER_COLOR = (25, 25, 30)
-TRAIN_LABEL_COLOR = (255, 240, 190)
+TRAIN_BODY_COLOR = (196, 66, 58)
+TRAIN_ROOF_COLOR = (150, 46, 42)
+TRAIN_WINDOW_COLOR = (176, 222, 236)
+TRAIN_TRIM_COLOR = (240, 206, 120)
+TRAIN_LIGHT_COLOR = (255, 244, 180)
+TRAIN_OUTLINE_COLOR = (26, 18, 18)
+TRAIN_LABEL_COLOR = (232, 222, 210)
 TOTAL_WAIT_COLOR = (255, 235, 150)
 BEST_SCORE_COLOR = (150, 235, 170)
 STATUS_COLOR = (200, 212, 228)
@@ -260,10 +264,27 @@ class GameViewModel:
                 sub.get_rect(midtop=(cx, cy + NODE_RADIUS + 7 + name.get_height())),
             )
 
+    def _make_train_surface(self) -> pygame.Surface:
+        """Build the train sprite drawn nose-right, ready to rotate onto a road."""
+        w, h = TRAIN_W, TRAIN_H
+        surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        body = pygame.Rect(0, 0, w, h)
+        pygame.draw.rect(surf, TRAIN_BODY_COLOR, body, border_radius=h // 2)
+        pygame.draw.rect(surf, TRAIN_ROOF_COLOR, (h // 2, 0, w - h - 2, 3))
+        pygame.draw.line(surf, TRAIN_TRIM_COLOR, (h // 2, h - 3), (w - 5, h - 3))
+        for i in range(3):
+            pygame.draw.rect(
+                surf, TRAIN_WINDOW_COLOR, (8 + i * 8, 4, 5, 5), border_radius=1
+            )
+        pygame.draw.circle(surf, TRAIN_LIGHT_COLOR, (w - 3, h // 2), 2)
+        pygame.draw.rect(surf, TRAIN_OUTLINE_COLOR, body, width=1, border_radius=h // 2)
+        return surf
+
     def _draw_train(
         self, screen: pygame.Surface, label_font: pygame.font.Font
     ) -> None:
-        """Draw the fastest train part-way along its lane toward the player."""
+        """Draw the fastest train part-way along its lane toward the player,
+        rotated to face its direction of travel."""
         if self.incoming_train is None:
             return
         source, target, start_ticks, duration = self.incoming_train
@@ -276,17 +297,20 @@ class GameViewModel:
         tx, ty = self._node_pos(target)
         dx, dy = tx - sx, ty - sy
         length = math.hypot(dx, dy) or 1
-        px, py = -dy / length, dx / length
+        ux, uy = dx / length, dy / length
+        px, py = -uy, ux
         off = TRACK_GAP / 2
         x = sx + dx * progress + px * off
         y = sy + dy * progress + py * off
 
-        rect = pygame.Rect(0, 0, TRAIN_W, TRAIN_H)
-        rect.center = (int(x), int(y))
-        pygame.draw.rect(screen, TRAIN_COLOR, rect, border_radius=4)
-        pygame.draw.rect(screen, TRAIN_BORDER_COLOR, rect, width=2, border_radius=4)
+        sprite = pygame.transform.rotate(
+            self._make_train_surface(), math.degrees(math.atan2(-uy, ux))
+        )
+        screen.blit(sprite, sprite.get_rect(center=(int(x), int(y))))
         label = label_font.render(f"{duration:.1f}s", True, TRAIN_LABEL_COLOR)
-        screen.blit(label, label.get_rect(midbottom=(int(x), rect.top - 4)))
+        screen.blit(
+            label, label.get_rect(midbottom=(int(x), int(y) - TRAIN_W // 2 - 2))
+        )
 
     def _draw_hud(
         self,
@@ -307,14 +331,14 @@ class GameViewModel:
         best = hud_font.render(f"Best: {self.best_highscore}", True, BEST_SCORE_COLOR)
         screen.blit(best, (24, 20 + total.get_height() + 8))
 
-        status_x = 24 + max(total.get_width(), best.get_width()) + 40
-        status_width = self.width - status_x - 24
-        y = 22
+        left_edge = 24 + max(total.get_width(), best.get_width()) + 30
+        status_max = self.width - 24 - left_edge
+        y = 20
         for line in self._status_lines():
             rendered = status_font.render(
-                self._truncate(line, status_font, status_width), True, STATUS_COLOR
+                self._truncate(line, status_font, status_max), True, STATUS_COLOR
             )
-            screen.blit(rendered, (status_x, y))
+            screen.blit(rendered, rendered.get_rect(topright=(self.width - 24, y)))
             y += rendered.get_height() + 4
 
         bar_top = self.height - BOTTOM_BAR_HEIGHT
