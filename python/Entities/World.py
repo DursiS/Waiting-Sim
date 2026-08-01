@@ -49,12 +49,19 @@ class World:
         """Return every station in the world."""
         return self._stations
 
+    def get_station_by_id(self, station_id: int) -> Station | None:
+        """Return the station with id <station_id>, or None if absent."""
+        for station in self._stations:
+            if station.id == station_id:
+                return station
+        return None
+
     def station_at(self, coordinate: tuple[int, int]) -> Station | None:
         """Return the station at <coordinate>, or None if that cell is empty."""
         return self._by_coordinate.get(coordinate)
 
     def neighbor(self, station: Station, direction: str) -> Station | None:
-        """Return the station one step from <station> in <direction>, or None."""
+        """Return the station one step from <station> in <direction>."""
         dx, dy = DIRECTION_DELTAS[direction]
         x, y = station.coordinates
         return self._by_coordinate.get((x + dx, y + dy))

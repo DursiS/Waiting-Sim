@@ -107,7 +107,10 @@ class AccessWaitRules(AccessWaitRulesInterface):
 
     def sample_rule(self, station_id: int) -> Any:
         """Return a sample from the distribution of that name and inputs."""
-        return self._rule_map[station_id]["rule"].rvs()
+        sample = self._rule_map[station_id]["rule"].rvs()
+        while sample == 0:
+            sample = self._rule_map[station_id]["rule"].rvs()
+        return sample
 
     def __getitem__(self, station_id: int) -> dict:
         """Return the rule entry for the station with id <station_id>."""
