@@ -63,6 +63,7 @@ class GameInteractor(GameInputBoundry):
         self._presenter.show_loading(True)
 
         t_waited, destination = self._fastest(wait_times)
+        self._presenter.show_incoming_train(destination, t_waited.total_seconds())
         player.wait(t_waited)
 
         self._presenter.show_loading(False)

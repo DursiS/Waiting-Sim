@@ -62,9 +62,7 @@ ABOUT_LINES = [
     "Simulation mode is a more serious sandbox: run many trials to",
     "observe the waiting-time phenomena across a whole network.",
     "",
-    "A Clean Architecture project for a University of Toronto",
-    "software design course.",
-    "Author: Sean Dursi     GitHub: github.com/DursiS/Waiting-Sim",
+    "GitHub: github.com/DursiS/Waiting-Sim",
     "",
     "Press O to return to the menu.",
 ]

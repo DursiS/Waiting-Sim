@@ -1,36 +1,59 @@
+import math
+
 import pygame
 
 from Entities import Station
 
 
-CELL_SIZE = 130
-PADDING = 40
-PROMPT_HEIGHT = 80
-TEXT_PANEL_WIDTH = 280
-MIN_GRID_WIDTH = 720
-PANEL_LINE_HEIGHT = 20
-BG_COLOR = (24, 24, 28)
-CELL_COLOR = (70, 130, 180)
-CURRENT_CELL_COLOR = (250, 180, 60)
-END_CELL_COLOR = (90, 190, 110)
-END_LABEL_COLOR = (20, 50, 30)
-BORDER_COLOR = (255, 255, 255)
-TEXT_COLOR = (255, 255, 255)
-RULE_TEXT_COLOR = (215, 230, 240)
-ID_TEXT_COLOR = (255, 210, 120)
-PROMPT_COLOR = (200, 200, 60)
-PANEL_DIVIDER_COLOR = (70, 70, 80)
-MESSAGE_COLOR = (220, 220, 220)
-STATS_COLOR = (150, 215, 235)
-STATS_HEADER_COLOR = (250, 205, 100)
-STATS_LABEL_COLOR = (198, 208, 218)
+ROAD_LENGTH = 220
+MARGIN_X = 130
+HUD_TOP_HEIGHT = 106
+NODE_TOP_PAD = 80
+NODE_BOTTOM_PAD = 100
+BOTTOM_BAR_HEIGHT = 56
+MIN_WIDTH = 900
+MIN_HEIGHT = 460
+NODE_RADIUS = 14
+TRACK_GAP = 9
+TRACK_WIDTH = 3
+ARROW_LEN = 9
+ARROW_WID = 6
+TRAIN_W = 40
+TRAIN_H = 9
+TRAIN_TRAVEL_SECONDS = 1.0
+CONTROL_GAP = 54
+
+CONTROLS = (("P", "Play"), ("C", "Continue"), ("R", "Restart"), ("Q", "Quit"))
+
+BG_COLOR = (16, 18, 24)
+HUD_COLOR = (10, 12, 16)
+HUD_LINE_COLOR = (44, 48, 58)
+TRACK_COLOR = (66, 74, 90)
+ARROW_COLOR = (120, 132, 152)
+NODE_COLOR = (66, 120, 170)
+NODE_BORDER_COLOR = (150, 172, 196)
+CURRENT_COLOR = (250, 180, 60)
+CURRENT_RING_COLOR = (255, 226, 150)
+END_COLOR = (86, 190, 112)
+LABEL_COLOR = (208, 220, 232)
+CURRENT_LABEL_COLOR = (255, 224, 150)
+END_LABEL_COLOR = (150, 235, 175)
+SUB_LABEL_COLOR = (150, 162, 178)
+TRAIN_COLOR = (240, 205, 90)
+TRAIN_BORDER_COLOR = (60, 50, 24)
+TRAIN_LABEL_COLOR = (240, 224, 170)
 TOTAL_WAIT_COLOR = (255, 235, 150)
 BEST_SCORE_COLOR = (150, 235, 170)
+STATUS_COLOR = (200, 212, 228)
+KEY_COLOR = (250, 210, 90)
+CONTROL_LABEL_COLOR = (200, 210, 224)
 
 
 class GameViewModel:
-    """A pygame rendering of the world grid, prompts, and a live side text
-    block of presenter messages, for an active game turn."""
+    """A Rail-Route style map of the world: stations are nodes joined by dual
+    one-way tracks, and the winning train departs from the player's station
+    toward the neighbour whose train arrived first. A compact HUD carries the
+    wait totals, the latest status lines and the controls."""
 
     stations: list[Station]
     curr_station: Station | None
@@ -39,9 +62,12 @@ class GameViewModel:
     total_wait: float
     best_highscore: str
     loading: bool
-    grid_width: int
+    incoming_train: tuple[Station | None, Station, int, float, float] | None
+    last_train: tuple[str, str] | None
+    train_travel_seconds: float
     width: int
     height: int
+    road_length: float
     _running: bool
 
     def __init__(
@@ -50,7 +76,7 @@ class GameViewModel:
         curr_station: Station | None = None,
         messages: list[str] = None,
     ) -> None:
-        """Create a ViewModel for <stations>, highlighting <curr_station>."""
+        """Create a rail-map ViewModel for <stations>, player at <curr_station>."""
         self.stations = stations or []
         self.curr_station = curr_station
         self.messages = messages or []
@@ -58,249 +84,353 @@ class GameViewModel:
         self.total_wait = 0.0
         self.best_highscore = "N/A"
         self.loading = False
+        self.incoming_train = None
+        self.last_train = None
+        self.train_travel_seconds = TRAIN_TRAVEL_SECONDS
+        self.road_length = ROAD_LENGTH
         self._running = False
         self._recompute_dimensions()
 
     def _recompute_dimensions(self) -> None:
-        """Size the window to fit the station grid and the side text panel,
-        with room for the wait statistics, messages and the prompt bar."""
+        """Size the window to the station layout plus the HUD bars."""
         x_m = max((s.coordinates[0] for s in self.stations), default=0)
         y_m = max((s.coordinates[1] for s in self.stations), default=0)
-        self.grid_width = max((x_m + 1) * CELL_SIZE + PADDING * 2, MIN_GRID_WIDTH)
-        grid_height = (y_m + 1) * CELL_SIZE + PADDING * 2 + PROMPT_HEIGHT
-        panel_lines = 2 * len(self.stations) + 14
-        panel_height = PADDING * 2 + panel_lines * PANEL_LINE_HEIGHT
-        self.height = max(grid_height, panel_height)
-        self.width = self.grid_width + TEXT_PANEL_WIDTH
+        self.width = max(int(MARGIN_X * 2 + x_m * self.road_length), MIN_WIDTH)
+        self.height = max(
+            int(
+                HUD_TOP_HEIGHT + NODE_TOP_PAD + y_m * self.road_length
+                + NODE_BOTTOM_PAD + BOTTOM_BAR_HEIGHT
+            ),
+            MIN_HEIGHT,
+        )
 
     def set_stations(self, stations: list[Station]) -> None:
         """Replace the shown stations and resize to fit them."""
         self.stations = stations
+        self.last_train = None
         self._recompute_dimensions()
 
     def set_current_station(self, station: Station | None) -> None:
-        """Set which station is highlighted as the player's location."""
+        """Set the player's station; the departing train has now completed."""
         self.curr_station = station
+        self.incoming_train = None
+
+    def set_incoming_train(self, destination: Station, wait_seconds: float) -> None:
+        """Send the winning train from the player's station toward <destination>
+        -- the neighbour whose train arrived first -- over the configured travel
+        time. <wait_seconds> is the real wait, shown as the train's label."""
+        origin = self.curr_station
+        self.incoming_train = (
+            origin, destination, pygame.time.get_ticks(),
+            self.train_travel_seconds, wait_seconds,
+        )
+        self.last_train = (
+            origin.name if origin is not None else "?", destination.name
+        )
 
     def clear_messages(self) -> None:
-        """Empty the side text block."""
+        """Empty the running status messages."""
         self.messages = []
 
     def add_message(self, message: str) -> None:
-        """Add <message> to the side text block; the draw loop shows it next frame."""
+        """Add <message>; the HUD shows the latest ones next frame."""
         self.messages.append(message)
 
     def clear_wait_stats(self) -> None:
-        """Empty the wait-statistics header shown above the messages."""
+        """Empty the wait-statistics header (unused by the rail HUD)."""
         self.wait_stats = []
 
     def add_wait_stat(self, stat: str) -> None:
-        """Add <stat> to the wait-statistics header above the messages."""
+        """Record a wait statistic (kept for the presenter contract)."""
         self.wait_stats.append(stat)
 
     def set_total_wait(self, total_wait: float) -> None:
-        """Set the player's cumulative wait time shown in the corner."""
+        """Set the player's cumulative wait time shown in the HUD."""
         self.total_wait = total_wait
 
     def set_best_highscore(self, best_highscore: str) -> None:
-        """Set the current map's best highscore shown in the corner."""
+        """Set the current map's best highscore shown in the HUD."""
         self.best_highscore = best_highscore
 
     def set_loading(self, loading: bool) -> None:
-        """Show or hide the animated waiting dots on the latest message."""
+        """Show or hide the animated dots on the latest status line."""
         self.loading = loading
 
-    def _wrap_text(
-        self, text: str, font: pygame.font.Font, max_width: int
-    ) -> list[str]:
-        """Split <text> into lines that each fit within <max_width>."""
-        words = text.split(" ")
-        lines = []
-        current = ""
-        for word in words:
-            candidate = f"{current} {word}".strip()
-            if font.size(candidate)[0] <= max_width:
-                current = candidate
-            else:
-                if current:
-                    lines.append(current)
-                current = word
-        if current:
-            lines.append(current)
-        return lines
+    def _node_pos(self, station: Station) -> tuple[int, int]:
+        """Return the screen centre of <station> from its grid coordinates."""
+        x, y = station.coordinates
+        return (
+            int(MARGIN_X + x * self.road_length),
+            int(HUD_TOP_HEIGHT + NODE_TOP_PAD + y * self.road_length),
+        )
 
-    def _draw_centered_lines(
-        self,
-        screen: pygame.Surface,
-        lines: list[str],
-        font: pygame.font.Font,
-        color: tuple[int, int, int],
-        center_x: int,
-        top_y: int,
-    ) -> int:
-        """Draw <lines> centered on <center_x> starting at <top_y>, return the bottom y."""
-        y = top_y
-        for line in lines:
-            rendered = font.render(line, True, color)
-            screen.blit(rendered, rendered.get_rect(midtop=(center_x, y)))
-            y += rendered.get_height()
-        return y
+    def _road_length(self, from_station: Station, to_station: Station) -> float:
+        """Return the road length from <from_station> to <to_station>.
 
-    def draw_grid(
-        self,
-        screen: pygame.Surface,
-        name_font: pygame.font.Font,
-        rule_font: pygame.font.Font,
-        id_font: pygame.font.Font,
-    ) -> None:
-        """Draw every station at its grid coordinates."""
+        Per-connection and per-direction lengths will be stored here; a single
+        shared length is used for every road for now."""
+        return self.road_length
+
+    def _pairs(self) -> list[tuple[Station, Station]]:
+        """Return each grid-adjacent station pair exactly once."""
+        by_coord = {tuple(s.coordinates): s for s in self.stations}
+        pairs = []
         for station in self.stations:
             x, y = station.coordinates
-            rect = pygame.Rect(
-                PADDING + x * CELL_SIZE,
-                PADDING + y * CELL_SIZE,
-                CELL_SIZE - 10,
-                CELL_SIZE - 10,
-            )
+            for dx, dy in ((1, 0), (0, 1)):
+                neighbour = by_coord.get((x + dx, y + dy))
+                if neighbour is not None:
+                    pairs.append((station, neighbour))
+        return pairs
+
+    def _truncate(
+        self, text: str, font: pygame.font.Font, max_width: int
+    ) -> str:
+        """Return <text> shortened with an ellipsis to fit <max_width>."""
+        if font.size(text)[0] <= max_width:
+            return text
+        while text and font.size(text + "...")[0] > max_width:
+            text = text[:-1]
+        return text + "..."
+
+    def _draw_tracks(self, screen: pygame.Surface) -> None:
+        """Draw every connection as two one-way roads, each drawn to its own
+        (currently shared) length with the arrow at its midpoint."""
+        for a, b in self._pairs():
+            ax, ay = self._node_pos(a)
+            bx, by = self._node_pos(b)
+            gap = math.hypot(bx - ax, by - ay) or 1
+            ux, uy = (bx - ax) / gap, (by - ay) / gap
+            px, py = -uy, ux
+            self._draw_road(screen, (ax, ay), (ux, uy), (px, py), self._road_length(a, b))
+            self._draw_road(screen, (bx, by), (-ux, -uy), (-px, -py), self._road_length(b, a))
+
+    def _draw_road(
+        self,
+        screen: pygame.Surface,
+        origin: tuple[float, float],
+        direction: tuple[float, float],
+        perp: tuple[float, float],
+        length: float,
+    ) -> None:
+        """Draw a one-way road of <length> from <origin> along <direction>,
+        offset to its own lane, with the direction arrow at its midpoint."""
+        ux, uy = direction
+        ox = origin[0] + perp[0] * TRACK_GAP / 2
+        oy = origin[1] + perp[1] * TRACK_GAP / 2
+        start = (ox + ux * NODE_RADIUS, oy + uy * NODE_RADIUS)
+        end = (ox + ux * (length - NODE_RADIUS), oy + uy * (length - NODE_RADIUS))
+        pygame.draw.line(screen, TRACK_COLOR, start, end, TRACK_WIDTH)
+        mid = (ox + ux * length / 2, oy + uy * length / 2)
+        self._draw_arrow(screen, mid, direction)
+
+    def _draw_arrow(
+        self,
+        screen: pygame.Surface,
+        pos: tuple[float, float],
+        direction: tuple[float, float],
+    ) -> None:
+        """Draw a small filled arrowhead at <pos> pointing along <direction>."""
+        ux, uy = direction
+        px, py = -uy, ux
+        tip = (pos[0] + ux * ARROW_LEN, pos[1] + uy * ARROW_LEN)
+        left = (pos[0] - ux * ARROW_LEN + px * ARROW_WID,
+                pos[1] - uy * ARROW_LEN + py * ARROW_WID)
+        right = (pos[0] - ux * ARROW_LEN - px * ARROW_WID,
+                 pos[1] - uy * ARROW_LEN - py * ARROW_WID)
+        pygame.draw.polygon(screen, ARROW_COLOR, [tip, left, right])
+
+    def _draw_stations(
+        self,
+        screen: pygame.Surface,
+        label_font: pygame.font.Font,
+        sub_font: pygame.font.Font,
+    ) -> None:
+        """Draw every station node with its name and a tag beneath it."""
+        for station in self.stations:
+            cx, cy = self._node_pos(station)
             is_current = (
-                self.curr_station is not None and station.id == self.curr_station.id
+                self.curr_station is not None
+                and station.id == self.curr_station.id
             )
             if is_current:
-                cell_color = CURRENT_CELL_COLOR
+                color, label_color = CURRENT_COLOR, CURRENT_LABEL_COLOR
             elif station.end:
-                cell_color = END_CELL_COLOR
+                color, label_color = END_COLOR, END_LABEL_COLOR
             else:
-                cell_color = CELL_COLOR
-            pygame.draw.rect(screen, cell_color, rect)
+                color, label_color = NODE_COLOR, LABEL_COLOR
+
+            pygame.draw.circle(screen, color, (cx, cy), NODE_RADIUS)
+            pygame.draw.circle(screen, NODE_BORDER_COLOR, (cx, cy), NODE_RADIUS, 2)
             if is_current:
-                pygame.draw.rect(screen, BORDER_COLOR, rect, width=4)
-            if station.end:
-                end_label = id_font.render("END", True, END_LABEL_COLOR)
-                screen.blit(
-                    end_label, end_label.get_rect(midtop=(rect.centerx, rect.top + 4))
+                pygame.draw.circle(
+                    screen, CURRENT_RING_COLOR, (cx, cy), NODE_RADIUS + 6, 2
                 )
 
-            max_text_width = rect.width - 10
-            name_lines = self._wrap_text(station.name, name_font, max_text_width)
-            rule_lines = self._wrap_text(station.rule_name, rule_font, max_text_width)
-            id_lines = [f"id: {station.id}"]
-            total_height = (
-                len(name_lines) * name_font.get_height()
-                + len(rule_lines) * rule_font.get_height()
-                + len(id_lines) * id_font.get_height()
-            )
-            top_y = rect.centery - total_height // 2
-
-            bottom = self._draw_centered_lines(
-                screen, name_lines, name_font, TEXT_COLOR, rect.centerx, top_y
-            )
-            bottom = self._draw_centered_lines(
-                screen, rule_lines, rule_font, RULE_TEXT_COLOR, rect.centerx, bottom
-            )
-            self._draw_centered_lines(
-                screen, id_lines, id_font, ID_TEXT_COLOR, rect.centerx, bottom
+            name = label_font.render(station.name, True, label_color)
+            screen.blit(name, name.get_rect(midtop=(cx, cy + NODE_RADIUS + 7)))
+            tag = "END" if station.end else station.rule_name
+            sub = sub_font.render(tag, True, SUB_LABEL_COLOR)
+            screen.blit(
+                sub,
+                sub.get_rect(midtop=(cx, cy + NODE_RADIUS + 7 + name.get_height())),
             )
 
-    def draw_prompts(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
-        """Draw the text prompts."""
-        prompt = font.render(
-            "Press P to Play  |  Press C to Continue  |  Press Q to Quit",
-            True,
-            PROMPT_COLOR,
+    def _make_train_surface(self) -> pygame.Surface:
+        """Build the plain train rectangle drawn nose-right, ready to rotate."""
+        surf = pygame.Surface((TRAIN_W, TRAIN_H), pygame.SRCALPHA)
+        rect = pygame.Rect(0, 0, TRAIN_W, TRAIN_H)
+        pygame.draw.rect(surf, TRAIN_COLOR, rect, border_radius=3)
+        pygame.draw.rect(surf, TRAIN_BORDER_COLOR, rect, width=1, border_radius=3)
+        return surf
+
+    def _draw_train(
+        self, screen: pygame.Surface, label_font: pygame.font.Font
+    ) -> None:
+        """Draw the winning train part-way from the player's station toward its
+        destination, rotated to face its direction of travel."""
+        if self.incoming_train is None:
+            return
+        origin, destination, start_ticks, travel, wait_seconds = self.incoming_train
+        if origin is None:
+            return
+        elapsed = (pygame.time.get_ticks() - start_ticks) / 1000.0
+        progress = 1.0 if travel <= 0 else min(elapsed / travel, 1.0)
+
+        sx, sy = self._node_pos(origin)
+        tx, ty = self._node_pos(destination)
+        dx, dy = tx - sx, ty - sy
+        length = math.hypot(dx, dy) or 1
+        ux, uy = dx / length, dy / length
+        px, py = -uy, ux
+        off = TRACK_GAP / 2
+        x = sx + dx * progress + px * off
+        y = sy + dy * progress + py * off
+
+        sprite = pygame.transform.rotate(
+            self._make_train_surface(), math.degrees(math.atan2(-uy, ux))
         )
-        screen.blit(prompt, (PADDING, self.height - PROMPT_HEIGHT // 2))
+        screen.blit(sprite, sprite.get_rect(center=(int(x), int(y))))
+        label = label_font.render(f"{wait_seconds:.1f}s", True, TRAIN_LABEL_COLOR)
+        screen.blit(
+            label, label.get_rect(midbottom=(int(x), int(y) - TRAIN_W // 2 - 2))
+        )
 
-    def draw_messages(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
-        """Draw the wait-statistics header and the presenter's messages."""
-        panel_x = self.grid_width
+    def _draw_hud(
+        self,
+        screen: pygame.Surface,
+        hud_font: pygame.font.Font,
+        status_font: pygame.font.Font,
+    ) -> None:
+        """Draw the top totals-and-status bar."""
+        pygame.draw.rect(screen, HUD_COLOR, (0, 0, self.width, HUD_TOP_HEIGHT))
         pygame.draw.line(
-            screen, PANEL_DIVIDER_COLOR, (panel_x, 0), (panel_x, self.height), width=2
+            screen, HUD_LINE_COLOR, (0, HUD_TOP_HEIGHT), (self.width, HUD_TOP_HEIGHT), 2
         )
+        total = hud_font.render(
+            f"Total wait: {self.total_wait:.1f}s", True, TOTAL_WAIT_COLOR
+        )
+        screen.blit(total, (24, 20))
+        best = hud_font.render(f"Best: {self.best_highscore}", True, BEST_SCORE_COLOR)
+        screen.blit(best, (24, 20 + total.get_height() + 8))
 
-        text_x = panel_x + PADDING // 2
-        max_width = TEXT_PANEL_WIDTH - PADDING
-        y = PADDING
-        for stat in self.wait_stats:
-            if stat.endswith(":"):
-                y += 7
-                rendered = font.render(stat, True, STATS_HEADER_COLOR)
-                screen.blit(rendered, (text_x, y))
-                y += rendered.get_height() + 4
-            elif ": " in stat:
-                name, value = stat.rsplit(": ", 1)
-                name_rendered = font.render(name, True, STATS_LABEL_COLOR)
-                value_rendered = font.render(value, True, STATS_COLOR)
-                screen.blit(name_rendered, (text_x + 10, y))
-                screen.blit(
-                    value_rendered, (text_x + max_width - value_rendered.get_width(), y)
-                )
-                y += name_rendered.get_height() + 3
-            else:
-                rendered = font.render(stat, True, STATS_COLOR)
-                screen.blit(rendered, (text_x, y))
-                y += rendered.get_height() + 3
-        if self.wait_stats:
-            y += 8
-            pygame.draw.line(
-                screen, PANEL_DIVIDER_COLOR, (text_x, y), (text_x + max_width, y), 1
+        status_x = 24 + max(total.get_width(), best.get_width()) + 40
+        status_width = self.width - status_x - 24
+        y = 22
+        for line in self._status_lines():
+            rendered = status_font.render(
+                self._truncate(line, status_font, status_width), True, STATUS_COLOR
             )
-            y += 8
+            screen.blit(rendered, (status_x, y))
+            y += rendered.get_height() + 4
 
-        last_index = len(self.messages) - 1
-        for index, message in enumerate(self.messages):
-            if self.loading and index == last_index:
-                message += "." * (pygame.time.get_ticks() // 300 % 5 + 1)
-            for line in self._wrap_text(message, font, max_width):
-                rendered = font.render(line, True, MESSAGE_COLOR)
-                screen.blit(rendered, (text_x, y))
-                y += rendered.get_height() + 2
-            y += 10
+    def _draw_controls(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
+        """Draw the bottom control hints: highlighted keys with spaced labels."""
+        bar_top = self.height - BOTTOM_BAR_HEIGHT
+        pygame.draw.rect(screen, HUD_COLOR, (0, bar_top, self.width, BOTTOM_BAR_HEIGHT))
+        pygame.draw.line(screen, HUD_LINE_COLOR, (0, bar_top), (self.width, bar_top), 2)
+        cy = bar_top + BOTTOM_BAR_HEIGHT // 2
 
-    def draw_total_wait(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
-        """Draw the cumulative wait time and best highscore in the top-left."""
-        total = font.render(f"Total wait: {self.total_wait:.1f}s", True, TOTAL_WAIT_COLOR)
-        screen.blit(total, (12, 10))
-        best = font.render(f"Best: {self.best_highscore}", True, BEST_SCORE_COLOR)
-        screen.blit(best, (12 + total.get_width() + 30, 10))
+        items = []
+        for key, label in CONTROLS:
+            key_surf = font.render(key, True, KEY_COLOR)
+            label_surf = font.render(label, True, CONTROL_LABEL_COLOR)
+            items.append(
+                (key_surf, label_surf, key_surf.get_width() + 7 + label_surf.get_width())
+            )
+        total = sum(w for _, _, w in items) + CONTROL_GAP * (len(items) - 1)
+        x = (self.width - total) // 2
+        for key_surf, label_surf, width in items:
+            screen.blit(key_surf, key_surf.get_rect(midleft=(x, cy)))
+            screen.blit(
+                label_surf,
+                label_surf.get_rect(midleft=(x + key_surf.get_width() + 7, cy)),
+            )
+            x += width + CONTROL_GAP
+
+    def _status_lines(self) -> list[str]:
+        """Return the HUD status: expected times, the winning train (from ->
+        to), and the actual wait, with dots while loading. Pre-turn and
+        terminal states fall back to the latest messages."""
+        latest = self.messages[-1] if self.messages else ""
+        terminal = any(
+            key in latest for key in ("reached the end", "No current save", "Quitting")
+        )
+        if not self.messages or terminal:
+            lines = self.messages[-2:]
+        else:
+            lines = []
+            expected = self._latest_message("Expected wait times")
+            if expected is not None:
+                lines.append(expected)
+            if self.last_train is not None:
+                lines.append(
+                    f"First train:  {self.last_train[0]}  ->  {self.last_train[1]}"
+                )
+            waits = self._latest_message("Wait times")
+            if waits is not None:
+                lines.append(waits)
+            if not lines:
+                lines = self.messages[-2:]
+        if self.loading and lines:
+            dots = "." * (pygame.time.get_ticks() // 300 % 5 + 1)
+            lines = lines[:-1] + [lines[-1] + dots]
+        return lines
+
+    def _latest_message(self, prefix: str) -> str | None:
+        """Return the most recent message starting with <prefix>, or None."""
+        for message in reversed(self.messages):
+            if message.startswith(prefix):
+                return message
+        return None
 
     def draw(self, screen: pygame.Surface) -> None:
-        """Draw the grid, prompts, and messages onto <screen>."""
-        name_font = pygame.font.SysFont(None, 22)
-        rule_font = pygame.font.SysFont(None, 16)
-        id_font = pygame.font.SysFont(None, 16)
-        prompt_font = pygame.font.SysFont(None, 24)
-        message_font = pygame.font.SysFont(None, 18)
-        total_wait_font = pygame.font.SysFont(None, 24)
+        """Draw the rail map and the HUD onto <screen>."""
+        label_font = pygame.font.SysFont(None, 22)
+        sub_font = pygame.font.SysFont(None, 16)
+        hud_font = pygame.font.SysFont(None, 24)
+        status_font = pygame.font.SysFont(None, 22)
+        control_font = pygame.font.SysFont(None, 24)
 
         screen.fill(BG_COLOR)
-        self.draw_grid(screen, name_font, rule_font, id_font)
-        self.draw_prompts(screen, prompt_font)
-        self.draw_messages(screen, message_font)
-        self.draw_total_wait(screen, total_wait_font)
+        self._draw_tracks(screen)
+        self._draw_stations(screen, label_font, sub_font)
+        self._draw_train(screen, sub_font)
+        self._draw_hud(screen, hud_font, status_font)
+        self._draw_controls(screen, control_font)
 
 
 class DefaultViewModel(GameViewModel):
-    """Default homescreen to select functionality from."""
+    """Default homescreen presenting the stations and available controls."""
 
     def __init__(self, stations: list[Station]) -> None:
-        """Create a DefaultViewModel presenting <stations> and the available controls."""
+        """Create a DefaultViewModel presenting <stations> and the controls."""
         super().__init__(
             stations=stations,
             curr_station=None,
             messages=[
                 "P - Play: start a new game",
                 "C - Continue: resume a saved game",
-                "S - Simulate: run simulations",
                 "Q - Quit: exit the game",
             ],
         )
-
-    def draw_prompts(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
-        """Draw the homescreen's text prompts."""
-        prompt = font.render(
-            "Press P to Play  |  Press C to Continue  |  "
-            "Press S to Simulate  |  Press Q to Quit",
-            True,
-            PROMPT_COLOR,
-        )
-        screen.blit(prompt, (PADDING, self.height - PROMPT_HEIGHT // 2))

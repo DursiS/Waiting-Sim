@@ -65,6 +65,10 @@ class GamePresenter(GameOutputBoundry):
         """Show or hide the animated waiting dots while waiting for trains."""
         self.view_model.set_loading(loading)
 
+    def show_incoming_train(self, destination: Station, seconds: float) -> None:
+        """Send the winning train toward <destination> for the <seconds> wait."""
+        self.view_model.set_incoming_train(destination, seconds)
+
     def say_reached_end(self, total_wait: float) -> None:
         """Announce the player reached the end after <total_wait> seconds."""
         self.view_model.add_message(
