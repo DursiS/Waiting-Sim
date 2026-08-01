@@ -61,7 +61,7 @@ class World:
         return self._by_coordinate.get(coordinate)
 
     def neighbor(self, station: Station, direction: str) -> Station | None:
-        """Return the station one step from <station> in <direction>, or None."""
+        """Return the station one step from <station> in <direction>."""
         dx, dy = DIRECTION_DELTAS[direction]
         x, y = station.coordinates
         return self._by_coordinate.get((x + dx, y + dy))

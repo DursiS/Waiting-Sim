@@ -1,3 +1,6 @@
+import math
+import time
+
 import numpy as np
 from numpy import dtype, float64, ndarray
 from scipy import integrate, stats
@@ -11,6 +14,7 @@ from Features.Simulation.SimulationInputBoundry import SimulationInputBoundry
 
 SIMULATION_NAME = "SIMULATION"
 RESIDUAL_BATCH_SIZE = 8192
+MAX_MATRIX_SIZE = 8
 
 
 class SimulationInteractor(SimulationInputBoundry):
@@ -58,6 +62,7 @@ class SimulationInteractor(SimulationInputBoundry):
         rand_arrival_sim_history: list[list[StepData]],
         steps: int,
         _from: Station,
+        runtime: float,
     ) -> dict:
         """Digest raw StepData across trials and format it into
         a grid of just the essential information we need to present."""
@@ -65,6 +70,7 @@ class SimulationInteractor(SimulationInputBoundry):
         return {
             (0, 0): self._average_wait_time(simulation_hist, steps),
             (0, 1): self._average_wait_time(rand_arrival_sim_history, steps),
+            (0, 2): round(runtime, 3),
             (1, 0): self._most_visited_station(simulation_hist),
             (1, 1): self._residual_squared_distribution(
                 simulation_hist, expected_wait_times
@@ -80,7 +86,7 @@ class SimulationInteractor(SimulationInputBoundry):
 
     def _average_wait_time(
         self, simulation_hist: list[list[StepData]], steps: int
-    ) -> tuple[float, float]:
+    ) -> float:
         """Return the average wait-time across steps with std. dev
         assuming no random-arrival."""
         gross_wait_time = 0
@@ -88,7 +94,7 @@ class SimulationInteractor(SimulationInputBoundry):
             for step_data in trial:
                 gross_wait_time += step_data.wait_time
         num_steps = len(simulation_hist) * steps
-        raise np.round(gross_wait_time / num_steps, 2)
+        return round(gross_wait_time / num_steps, 2)
 
     def _most_visited_station(self, simulation_hist: list[list[StepData]]) -> Station:
         """Return the most visited Station from the simulation."""
@@ -155,8 +161,10 @@ class SimulationInteractor(SimulationInputBoundry):
         self._presenter.show_loading(True)
         player = Player(name=SIMULATION_NAME, starting_station=spawn)
 
+        runtime_start = time.perf_counter()
         sim_history = self._simulate(trials, steps, player, False)
         rand_arrival_sim_history = self._simulate(trials, steps, player, True)
+        runtime_end = time.perf_counter()
 
         self._presenter.show_loading(False)
         self._presenter.say_done_trials()
@@ -166,6 +174,7 @@ class SimulationInteractor(SimulationInputBoundry):
                 rand_arrival_sim_history,
                 steps,
                 spawn,
+                runtime_end - runtime_start,
             )
         )
 
@@ -256,7 +265,7 @@ class SimulationInteractor(SimulationInputBoundry):
         station2 = self._world.get_station_by_id(station2_id)
         return self._probability_is_fastest(
             station1.rule,
-            station2.rule,
+            [station2.rule],
         )
 
     def _probability_is_fastest(
@@ -302,7 +311,7 @@ class SimulationInteractor(SimulationInputBoundry):
         """Return whether the frozen distribution <rule> is discrete."""
         return isinstance(rule.dist, stats.rv_discrete)
 
-    def _discrete_support(self, rule: rv_frozen) -> range:
+    def _discrete_support(self, rule: rv_frozen) -> list[float]:
         """Return the integer support of discrete <rule>, capped at a far
         quantile where it is unbounded."""
         low, high = rule.support()
@@ -310,25 +319,35 @@ class SimulationInteractor(SimulationInputBoundry):
             low = rule.ppf(1e-12)
         if not np.isfinite(high):
             high = rule.ppf(1 - 1e-12)
-        return range(int(low), int(high) + 1)
+        return [i for i in range(int(low), int(high) + 1)]
 
     def _continuous_bounds(self, rule: rv_frozen) -> tuple[float, float]:
         """Return practical integration limits spanning <rule>'s density."""
         return float(rule.ppf(1e-12)), float(rule.ppf(1 - 1e-12))
+
+    def _ids_to_stations(self) -> dict[int, Station]:
+        """Return the loaded map's stations keyed by their id."""
+        return {station.id: station for station in self._world.get_stations()}
 
     def _n_step_transition_matrix(
         self, _from: Station, n: int
     ) -> ndarray[tuple[int], dtype[float64]]:
         """Return the probability of being at <_to> within <n> steps
         starting at <_from>."""
-        MAX_SIZE = 7
-        i = _from.id
-        Q = np.zeros(MAX_SIZE)
-        adjacent_ids = [station.id for station in self._world.adjacent_stations(_from)]
+        world_stations = self._world.get_stations()
+        size = len(world_stations)
+        Q = np.zeros((size, size))
 
-        for j in range(0, MAX_SIZE):
-            if j in adjacent_ids:
-                Q[i, j] = np.prod(
-                    [self._probability_faster_wait_time(i, j) for j in adjacent_ids]
+        for station_j in world_stations:
+            neighbours = self._world.adjacent_stations(station_j)
+            rules = [neighbour.rule for neighbour in neighbours]
+            for k, neighbour in enumerate(neighbours):
+                Q[neighbour.id, station_j.id] = self._probability_is_fastest(
+                    rules[k], rules[:k] + rules[k + 1 :]
                 )
+
+        column_sums = Q.sum(axis=0)
+        column_sums[column_sums == 0] = 1.0
+        Q = Q / column_sums  # Normalization
+
         return np.linalg.matrix_power(Q, n)
