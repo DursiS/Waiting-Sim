@@ -7,7 +7,7 @@ from Entities import Station
 
 ROAD_LENGTH = 220
 MARGIN_X = 130
-HUD_TOP_HEIGHT = 92
+HUD_TOP_HEIGHT = 106
 NODE_TOP_PAD = 80
 NODE_BOTTOM_PAD = 100
 BOTTOM_BAR_HEIGHT = 56
@@ -20,6 +20,10 @@ ARROW_LEN = 9
 ARROW_WID = 6
 TRAIN_W = 40
 TRAIN_H = 9
+TRAIN_TRAVEL_SECONDS = 1.0
+CONTROL_GAP = 54
+
+CONTROLS = (("P", "Play"), ("C", "Continue"), ("R", "Restart"), ("Q", "Quit"))
 
 BG_COLOR = (16, 18, 24)
 HUD_COLOR = (10, 12, 16)
@@ -41,14 +45,15 @@ TRAIN_LABEL_COLOR = (240, 224, 170)
 TOTAL_WAIT_COLOR = (255, 235, 150)
 BEST_SCORE_COLOR = (150, 235, 170)
 STATUS_COLOR = (200, 212, 228)
-PROMPT_COLOR = (200, 200, 90)
+KEY_COLOR = (250, 210, 90)
+CONTROL_LABEL_COLOR = (200, 210, 224)
 
 
 class GameViewModel:
     """A Rail-Route style map of the world: stations are nodes joined by dual
-    one-way tracks, and the single fastest train is animated from its station
-    to the player's in real time. A compact HUD carries the wait totals, the
-    latest status lines and the controls."""
+    one-way tracks, and the winning train departs from the player's station
+    toward the neighbour whose train arrived first. A compact HUD carries the
+    wait totals, the latest status lines and the controls."""
 
     stations: list[Station]
     curr_station: Station | None
@@ -57,7 +62,9 @@ class GameViewModel:
     total_wait: float
     best_highscore: str
     loading: bool
-    incoming_train: tuple[Station, Station | None, int, float] | None
+    incoming_train: tuple[Station | None, Station, int, float, float] | None
+    last_train: tuple[str, str] | None
+    train_travel_seconds: float
     width: int
     height: int
     road_length: float
@@ -78,6 +85,8 @@ class GameViewModel:
         self.best_highscore = "N/A"
         self.loading = False
         self.incoming_train = None
+        self.last_train = None
+        self.train_travel_seconds = TRAIN_TRAVEL_SECONDS
         self.road_length = ROAD_LENGTH
         self._running = False
         self._recompute_dimensions()
@@ -98,18 +107,25 @@ class GameViewModel:
     def set_stations(self, stations: list[Station]) -> None:
         """Replace the shown stations and resize to fit them."""
         self.stations = stations
+        self.last_train = None
         self._recompute_dimensions()
 
     def set_current_station(self, station: Station | None) -> None:
-        """Set the player's station; the arriving train has now completed."""
+        """Set the player's station; the departing train has now completed."""
         self.curr_station = station
         self.incoming_train = None
 
-    def set_incoming_train(self, source: Station, seconds: float) -> None:
-        """Start the fastest train travelling from <source> to the player's
-        current station over <seconds> real seconds."""
+    def set_incoming_train(self, destination: Station, wait_seconds: float) -> None:
+        """Send the winning train from the player's station toward <destination>
+        -- the neighbour whose train arrived first -- over the configured travel
+        time. <wait_seconds> is the real wait, shown as the train's label."""
+        origin = self.curr_station
         self.incoming_train = (
-            source, self.curr_station, pygame.time.get_ticks(), seconds
+            origin, destination, pygame.time.get_ticks(),
+            self.train_travel_seconds, wait_seconds,
+        )
+        self.last_train = (
+            origin.name if origin is not None else "?", destination.name
         )
 
     def clear_messages(self) -> None:
@@ -271,18 +287,18 @@ class GameViewModel:
     def _draw_train(
         self, screen: pygame.Surface, label_font: pygame.font.Font
     ) -> None:
-        """Draw the fastest train part-way along its lane toward the player,
-        rotated to face its direction of travel."""
+        """Draw the winning train part-way from the player's station toward its
+        destination, rotated to face its direction of travel."""
         if self.incoming_train is None:
             return
-        source, target, start_ticks, duration = self.incoming_train
-        if target is None:
+        origin, destination, start_ticks, travel, wait_seconds = self.incoming_train
+        if origin is None:
             return
         elapsed = (pygame.time.get_ticks() - start_ticks) / 1000.0
-        progress = 1.0 if duration <= 0 else min(elapsed / duration, 1.0)
+        progress = 1.0 if travel <= 0 else min(elapsed / travel, 1.0)
 
-        sx, sy = self._node_pos(source)
-        tx, ty = self._node_pos(target)
+        sx, sy = self._node_pos(origin)
+        tx, ty = self._node_pos(destination)
         dx, dy = tx - sx, ty - sy
         length = math.hypot(dx, dy) or 1
         ux, uy = dx / length, dy / length
@@ -295,7 +311,7 @@ class GameViewModel:
             self._make_train_surface(), math.degrees(math.atan2(-uy, ux))
         )
         screen.blit(sprite, sprite.get_rect(center=(int(x), int(y))))
-        label = label_font.render(f"{duration:.1f}s", True, TRAIN_LABEL_COLOR)
+        label = label_font.render(f"{wait_seconds:.1f}s", True, TRAIN_LABEL_COLOR)
         screen.blit(
             label, label.get_rect(midbottom=(int(x), int(y) - TRAIN_W // 2 - 2))
         )
@@ -305,9 +321,8 @@ class GameViewModel:
         screen: pygame.Surface,
         hud_font: pygame.font.Font,
         status_font: pygame.font.Font,
-        prompt_font: pygame.font.Font,
     ) -> None:
-        """Draw the top totals/status bar and the bottom controls bar."""
+        """Draw the top totals-and-status bar."""
         pygame.draw.rect(screen, HUD_COLOR, (0, 0, self.width, HUD_TOP_HEIGHT))
         pygame.draw.line(
             screen, HUD_LINE_COLOR, (0, HUD_TOP_HEIGHT), (self.width, HUD_TOP_HEIGHT), 2
@@ -329,25 +344,65 @@ class GameViewModel:
             screen.blit(rendered, (status_x, y))
             y += rendered.get_height() + 4
 
+    def _draw_controls(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
+        """Draw the bottom control hints: highlighted keys with spaced labels."""
         bar_top = self.height - BOTTOM_BAR_HEIGHT
         pygame.draw.rect(screen, HUD_COLOR, (0, bar_top, self.width, BOTTOM_BAR_HEIGHT))
         pygame.draw.line(screen, HUD_LINE_COLOR, (0, bar_top), (self.width, bar_top), 2)
-        prompt = prompt_font.render(
-            "P Play    C Continue    R Restart    Q Quit", True, PROMPT_COLOR
-        )
-        screen.blit(
-            prompt, prompt.get_rect(center=(self.width // 2, bar_top + BOTTOM_BAR_HEIGHT // 2))
-        )
+        cy = bar_top + BOTTOM_BAR_HEIGHT // 2
+
+        items = []
+        for key, label in CONTROLS:
+            key_surf = font.render(key, True, KEY_COLOR)
+            label_surf = font.render(label, True, CONTROL_LABEL_COLOR)
+            items.append(
+                (key_surf, label_surf, key_surf.get_width() + 7 + label_surf.get_width())
+            )
+        total = sum(w for _, _, w in items) + CONTROL_GAP * (len(items) - 1)
+        x = (self.width - total) // 2
+        for key_surf, label_surf, width in items:
+            screen.blit(key_surf, key_surf.get_rect(midleft=(x, cy)))
+            screen.blit(
+                label_surf,
+                label_surf.get_rect(midleft=(x + key_surf.get_width() + 7, cy)),
+            )
+            x += width + CONTROL_GAP
 
     def _status_lines(self) -> list[str]:
-        """Return the latest status lines, animating dots while loading."""
-        if not self.messages:
-            return []
-        lines = self.messages[-2:]
-        if self.loading:
+        """Return the HUD status: expected times, the winning train (from ->
+        to), and the actual wait, with dots while loading. Pre-turn and
+        terminal states fall back to the latest messages."""
+        latest = self.messages[-1] if self.messages else ""
+        terminal = any(
+            key in latest for key in ("reached the end", "No current save", "Quitting")
+        )
+        if not self.messages or terminal:
+            lines = self.messages[-2:]
+        else:
+            lines = []
+            expected = self._latest_message("Expected wait times")
+            if expected is not None:
+                lines.append(expected)
+            if self.last_train is not None:
+                lines.append(
+                    f"First train:  {self.last_train[0]}  ->  {self.last_train[1]}"
+                )
+            waits = self._latest_message("Wait times")
+            if waits is not None:
+                lines.append(waits)
+            if not lines:
+                lines = self.messages[-2:]
+        if self.loading and lines:
             dots = "." * (pygame.time.get_ticks() // 300 % 5 + 1)
             lines = lines[:-1] + [lines[-1] + dots]
         return lines
+
+    def _latest_message(self, prefix: str) -> str | None:
+        """Return the most recent message starting with <prefix>, or None."""
+        for message in reversed(self.messages):
+            if message.startswith(prefix):
+                return message
+        return None
 
     def draw(self, screen: pygame.Surface) -> None:
         """Draw the rail map and the HUD onto <screen>."""
@@ -355,13 +410,14 @@ class GameViewModel:
         sub_font = pygame.font.SysFont(None, 16)
         hud_font = pygame.font.SysFont(None, 24)
         status_font = pygame.font.SysFont(None, 22)
-        prompt_font = pygame.font.SysFont(None, 24)
+        control_font = pygame.font.SysFont(None, 24)
 
         screen.fill(BG_COLOR)
         self._draw_tracks(screen)
         self._draw_stations(screen, label_font, sub_font)
         self._draw_train(screen, sub_font)
-        self._draw_hud(screen, hud_font, status_font, prompt_font)
+        self._draw_hud(screen, hud_font, status_font)
+        self._draw_controls(screen, control_font)
 
 
 class DefaultViewModel(GameViewModel):
