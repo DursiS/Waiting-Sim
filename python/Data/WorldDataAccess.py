@@ -7,7 +7,7 @@ from scipy import stats
 from scipy.stats._distn_infrastructure import rv_frozen
 
 from Entities import Station
-from Data import AccessWaitRulesInterface
+from Data import WorldDataAccessInterface
 
 DATA_DIR = os.path.dirname(__file__)
 PLAYER_DATA_PATH = os.path.join(DATA_DIR, "player_data.json")
@@ -24,8 +24,11 @@ RULE_FACTORIES = {
 }
 
 
-class AccessWaitRules(AccessWaitRulesInterface):
-    """Data access to default world and station configurations
+class WorldDataAccess(WorldDataAccessInterface):
+    """Data access to the shared station catalogue and the per-world layouts.
+
+    Stations live once in stations.json keyed by id; worlds.json references
+    those ids and adds the per-world coordinates, roads and end station.
 
     Public Attributes:
         - _stations: a dictionary mapping station id to their information.
@@ -62,17 +65,21 @@ class AccessWaitRules(AccessWaitRulesInterface):
         }
 
     def _load_world(self, num: int) -> dict:
-        """Load the world through one of the default configurations."""
+        """Build world <num> from the shared catalogue and its layout: place
+        each referenced station at its coordinates, attach its roads and flag
+        the end station."""
         with open(WORLDS_DATA_PATH, "r") as f:
             raw_worlds = json.load(f)
-        world_data = raw_worlds[str(num)]
+        layout = raw_worlds[str(num)]
 
         world = {}
-        for _id in world_data:
-            world[_id] = self._stations[_id]
-            world[_id]["coordinates"] = 0
-            world[_id]["roads"] = 0
-        world[world_data["end"]]["end"] = True
+        for station_id, placement in layout["stations"].items():
+            station_id = int(station_id)
+            record = dict(self._stations[station_id])
+            record["coordinates"] = tuple(placement["coordinates"])
+            record["roads"] = placement["roads"]
+            record["end"] = station_id == layout["end"]
+            world[station_id] = record
         return world
 
     def load_map(self, map_id: int) -> None:

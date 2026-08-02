@@ -8,8 +8,8 @@ from scipy.stats._distn_infrastructure import rv_frozen
 from Entities import Station
 
 
-class AccessWaitRulesInterface(ABC):
-    """Applies parameter changes to a WaitRules instance."""
+class WorldDataAccessInterface(ABC):
+    """Access to the station catalogue and per-world layouts."""
 
     @abstractmethod
     def set_dt(self, dt: timedelta) -> None:
