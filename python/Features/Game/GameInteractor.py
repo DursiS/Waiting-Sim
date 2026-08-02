@@ -5,7 +5,9 @@ from Entities import Station, World, Player, Line
 from Features.Game import GameInputBoundry, GameOutputBoundry
 from Data import WorldDataAccessInterface
 
+
 Z_95 = 1.645
+LENGTH_TRAVEL_FACTOR = 0.01
 
 
 class GameInteractor(GameInputBoundry):
@@ -17,7 +19,7 @@ class GameInteractor(GameInputBoundry):
     _last_game: tuple[str, int, bool] | None
 
     def __init__(
-        self, dao: WorldDataAccessInterface, presenter: GameOutputBoundry
+            self, dao: WorldDataAccessInterface, presenter: GameOutputBoundry
     ) -> None:
 
         self._dao = dao
@@ -40,17 +42,28 @@ class GameInteractor(GameInputBoundry):
         return station
 
     def _fastest(
-        self, wait_times: list[tuple[Station, float]]
+            self, wait_times: list[tuple[Station, float]]
     ) -> tuple[timedelta, Station]:
         """Return the shortest ride as a (wait, destination station) pair."""
         destination, seconds = min(wait_times, key=lambda pair: pair[1])
         return timedelta(seconds=seconds), destination
 
     def _named(
-        self, wait_times: list[tuple[Station, float]]
+            self, wait_times: list[tuple[Station, float]]
     ) -> list[tuple[str, float]]:
         """Label each neighbour-wait pair with its station name for display."""
         return [(station.name, seconds) for station, seconds in wait_times]
+
+    def _time_spent_traveling(self, player: Player,
+                              destination: Station) -> timedelta:
+        """Return the time in seconds spent travelling from the player's
+        current station to their destination."""
+        roads_from = self._world.roads_from(player.station)
+        for road in roads_from:
+            if road.to_id() == destination.id:
+                s = road.length * LENGTH_TRAVEL_FACTOR
+                return timedelta(seconds=s)
+        return timedelta(seconds=1)
 
     def _game_turn(self, player: Player, rand_arrival: bool) -> None:
         """Run one turn of the game, feeding the presenter as it goes."""
@@ -63,8 +76,10 @@ class GameInteractor(GameInputBoundry):
         self._presenter.show_loading(True)
 
         t_waited, destination = self._fastest(wait_times)
-        self._presenter.show_incoming_train(destination, t_waited.total_seconds())
-        player.wait(t_waited)
+        t_travel = self._time_spent_traveling(player, destination)
+        self._presenter.show_incoming_train(destination,
+                                            t_waited.total_seconds())
+        player.wait(t_waited + t_travel)
 
         self._presenter.show_loading(False)
         self._presenter.say_sequenced_wait_times(self._named(wait_times))
@@ -77,7 +92,8 @@ class GameInteractor(GameInputBoundry):
         self._dao[idx]["times_visited"] += 1
         self._dao[idx]["waited_at"] += t_waited
 
-        player.move(self._instantiate_station(self._dao.get_record(destination.id)))
+        player.move(
+            self._instantiate_station(self._dao.get_record(destination.id)))
 
         self._presenter.show_player_station(player.station)
         self._presenter.show_total_wait(player.time_waited.total_seconds())
@@ -92,8 +108,10 @@ class GameInteractor(GameInputBoundry):
     def _best_highscore(self, rand_arrival: bool) -> dict | None:
         """Return the lowest-time completion of the current map for the given
         random-arrival setting, or None."""
-        highscores = self._dao.get_highscores(self._dao.current_map_id(), rand_arrival)
-        return min(highscores, key=lambda entry: entry["time"]) if highscores else None
+        highscores = self._dao.get_highscores(self._dao.current_map_id(),
+                                              rand_arrival)
+        return min(highscores,
+                   key=lambda entry: entry["time"]) if highscores else None
 
     def _win(self, player: Player, rand_arrival: bool) -> None:
         """End the game: record the highscore and clear the save."""
@@ -112,10 +130,10 @@ class GameInteractor(GameInputBoundry):
         self._dao.save_player(data)
 
     def execute_new_game(
-        self,
-        name: str,
-        map_id: int,
-        rand_arrival: bool,
+            self,
+            name: str,
+            map_id: int,
+            rand_arrival: bool,
     ) -> None:
         """Set up a game on <map_id> and explain it, leaving the first turn to
         a continue."""
@@ -165,11 +183,12 @@ class GameInteractor(GameInputBoundry):
         for record in self._dao.get_records():
             total_expectation += self._dao.get_expectation(record["id"])
             total_variance += self._dao.get_std_dev(record["id"]) ** 2
-        return total_expectation, total_variance**0.5
+        return total_expectation, total_variance ** 0.5
 
     def _station_risk(self, station_id: int) -> float:
         """Return the 95th-percentile risk wait for the station with id <station_id>."""
-        return self._dao.get_expectation(station_id) + Z_95 * self._dao.get_std_dev(
+        return self._dao.get_expectation(
+            station_id) + Z_95 * self._dao.get_std_dev(
             station_id
         )
 
@@ -261,14 +280,16 @@ class GameInteractor(GameInputBoundry):
         station = self._world.station_at(
             tuple(self._dao.get_record(station_id)["coordinates"])
         )
-        return [neighbor.id for neighbor in self._world.adjacent_stations(station)]
+        return [neighbor.id for neighbor in
+                self._world.adjacent_stations(station)]
 
     def _new_world(self) -> World:
         """Return a world built from the current map's station records, wiring
         up each station's roads as one-way lines between the built stations."""
         world = World()
         stations = [
-            self._instantiate_station(record) for record in self._dao.get_records()
+            self._instantiate_station(record) for record in
+            self._dao.get_records()
         ]
         world.add_stations(stations)
         by_id = {station.id: station for station in stations}
@@ -284,7 +305,7 @@ class GameInteractor(GameInputBoundry):
         return world
 
     def _neighbour_expected_times(
-        self, player: Player, rand_arrival: bool
+            self, player: Player, rand_arrival: bool
     ) -> list[tuple[Station, float]]:
         """Return each adjacent station paired with its expected ride time."""
         result = []
@@ -296,7 +317,7 @@ class GameInteractor(GameInputBoundry):
         return result
 
     def _neighbour_wait_times(
-        self, player: Player, rand_arrival: bool
+            self, player: Player, rand_arrival: bool
     ) -> list[tuple[Station, float]]:
         """Sample each adjacent station's ride time, paired with that station."""
         result = []

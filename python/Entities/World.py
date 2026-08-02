@@ -28,7 +28,7 @@ class World:
 
     _stations: list[Station]
     _by_coordinate: dict[tuple[int, int], Station]
-    _lines: list[Line]
+    _lines: dict[int, list[Line]]
 
     def __init__(self) -> None:
         """Create an empty World."""
@@ -58,15 +58,17 @@ class World:
 
     def add_line(self, line: Line) -> None:
         """Add the one-way road <line> to the world."""
-        self._lines.append(line)
+        if line.from_id() not in list(self._lines.keys()):
+            self._lines[line.from_id()] = []
+        self._lines[line.from_id()].append(line)
 
-    def get_lines(self) -> list[Line]:
+    def get_lines(self, _id: int) -> dict[int, list[Line]]:
         """Return every one-way road in the world."""
         return self._lines
 
     def roads_from(self, station: Station) -> list[Line]:
         """Return every one-way road leaving <station>."""
-        return [line for line in self._lines if line._from == station]
+        return self._lines[station.id]
 
     def get_station_by_id(self, station_id: int) -> Station | None:
         """Return the station with id <station_id>, or None if absent."""
