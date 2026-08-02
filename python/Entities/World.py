@@ -1,4 +1,4 @@
-from Entities import Station
+from Entities import Station, Line
 
 
 DIRECTION_DELTAS: dict[str, tuple[int, int]] = {
@@ -16,18 +16,25 @@ class World:
     coordinates differ by one step in a cardinal direction, so every adjacency
     query is a grid lookup by coordinate.
 
+    Roads are stored as one-way lines but do not drive adjacency: neighbour
+    queries still read the coordinate grid. They carry each connection's length
+    for the view and seed a future move to road-based adjacency.
+
     Private Attributes:
         - _stations: Every station in the world.
         - _by_coordinate: Every station keyed by its (x, y) grid position.
+        - _lines: Every one-way road between stations in the world.
     """
 
     _stations: list[Station]
     _by_coordinate: dict[tuple[int, int], Station]
+    _lines: list[Line]
 
     def __init__(self) -> None:
         """Create an empty World."""
         self._stations = []
         self._by_coordinate = {}
+        self._lines = []
 
     def add_station(self, station: Station) -> bool:
         """Add <station>, return whether its grid position was free."""
@@ -48,6 +55,18 @@ class World:
     def get_stations(self) -> list[Station]:
         """Return every station in the world."""
         return self._stations
+
+    def add_line(self, line: Line) -> None:
+        """Add the one-way road <line> to the world."""
+        self._lines.append(line)
+
+    def get_lines(self) -> list[Line]:
+        """Return every one-way road in the world."""
+        return self._lines
+
+    def roads_from(self, station: Station) -> list[Line]:
+        """Return every one-way road leaving <station>."""
+        return [line for line in self._lines if line._from == station]
 
     def get_station_by_id(self, station_id: int) -> Station | None:
         """Return the station with id <station_id>, or None if absent."""

@@ -6,7 +6,7 @@ from numpy import dtype, float64, ndarray
 from scipy import integrate, stats
 from scipy.stats._distn_infrastructure import rv_frozen
 
-from Data import AccessWaitRulesInterface
+from Data import WorldDataAccessInterface
 from Entities import Player, Station, World
 from Entities.StepData import StepData
 from Features.Simulation import SimulationOutputBoundry
@@ -20,12 +20,12 @@ MAX_MATRIX_SIZE = 8
 class SimulationInteractor(SimulationInputBoundry):
     """Orchestrates simulation business logic."""
 
-    _dao: AccessWaitRulesInterface
+    _dao: WorldDataAccessInterface
     _presenter: SimulationOutputBoundry
     _residual_pool: dict[tuple, list[float]]
 
     def __init__(
-        self, dao: AccessWaitRulesInterface, presenter: SimulationOutputBoundry
+        self, dao: WorldDataAccessInterface, presenter: SimulationOutputBoundry
     ) -> None:
         """Create a SimulationInteractor using <dao> for wait rule data and
         <presenter> to report simulation results."""

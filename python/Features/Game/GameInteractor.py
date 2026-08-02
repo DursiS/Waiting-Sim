@@ -1,9 +1,9 @@
 import random
 from datetime import timedelta
 
-from Entities import Station, World, Player
+from Entities import Station, World, Player, Line
 from Features.Game import GameInputBoundry, GameOutputBoundry
-from Data import AccessWaitRulesInterface
+from Data import WorldDataAccessInterface
 
 Z_95 = 1.645
 
@@ -12,12 +12,12 @@ class GameInteractor(GameInputBoundry):
     """Orchestrates business logic"""
 
     _world: World
-    _dao: AccessWaitRulesInterface
+    _dao: WorldDataAccessInterface
     _presenter: GameOutputBoundry
     _last_game: tuple[str, int, bool] | None
 
     def __init__(
-        self, dao: AccessWaitRulesInterface, presenter: GameOutputBoundry
+        self, dao: WorldDataAccessInterface, presenter: GameOutputBoundry
     ) -> None:
 
         self._dao = dao
@@ -264,11 +264,23 @@ class GameInteractor(GameInputBoundry):
         return [neighbor.id for neighbor in self._world.adjacent_stations(station)]
 
     def _new_world(self) -> World:
-        """Return a world built from the current map's station records."""
+        """Return a world built from the current map's station records, wiring
+        up each station's roads as one-way lines between the built stations."""
         world = World()
-        world.add_stations(
-            [self._instantiate_station(record) for record in self._dao.get_records()]
-        )
+        stations = [
+            self._instantiate_station(record) for record in self._dao.get_records()
+        ]
+        world.add_stations(stations)
+        by_id = {station.id: station for station in stations}
+        for record in self._dao.get_records():
+            for road in record["roads"]:
+                world.add_line(
+                    Line(
+                        _from=by_id[record["id"]],
+                        _to=by_id[road["to"]],
+                        length=road["length"],
+                    )
+                )
         return world
 
     def _neighbour_expected_times(
