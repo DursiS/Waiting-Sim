@@ -12,6 +12,7 @@ _SOUND_FILES = {
 
 _sounds: dict[str, "pygame.mixer.Sound"] = {}
 _ready: bool = False
+_volume: float = 0.7
 
 
 def init() -> None:
@@ -33,6 +34,25 @@ def init() -> None:
             _sounds[name] = pygame.mixer.Sound(path)
         except pygame.error:
             pass
+    set_volume(_volume)
+
+
+def get_volume() -> float:
+    """Return the master volume (0.0 muted .. 1.0 full) all audio obeys."""
+    return _volume
+
+
+def set_volume(volume: float) -> None:
+    """Set the master volume every effect -- and any future music -- plays at.
+
+    Each effect keeps its own baked-in relative loudness; this scales them all
+    together, so the balance between a loud ding and a soft chime is kept."""
+    global _volume
+    _volume = max(0.0, min(1.0, volume))
+    for sound in _sounds.values():
+        sound.set_volume(_volume)
+    if pygame.mixer.get_init():
+        pygame.mixer.music.set_volume(_volume)
 
 
 def play(name: str) -> None:
@@ -41,4 +61,5 @@ def play(name: str) -> None:
         init()
     sound = _sounds.get(name)
     if sound is not None:
+        sound.set_volume(_volume)
         sound.play()
