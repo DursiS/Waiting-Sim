@@ -1,5 +1,6 @@
 import numpy as np
 
+import Audio
 from Entities import Station
 from Features.Simulation import SimulationOutputBoundry, SimulationViewModel
 
@@ -33,6 +34,7 @@ class SimulationPresenter(SimulationOutputBoundry):
         """Display the digested metric grid, keyed by (row, column)."""
         for (row, col), value in grid.items():
             self.view_model.set_value(row, col, self._format(value))
+        Audio.play("ding")
 
     def _format(self, value: object) -> str:
         """Render a metric value for its cell: a name for a station, a text

@@ -3,6 +3,7 @@ from typing import Callable
 
 import pygame
 
+import Audio
 from Features.Game import GameView
 from Features.Simulation import SimulationView
 
@@ -103,6 +104,7 @@ class ViewFacade:
         }
 
         pygame.init()
+        Audio.init()
         self._set_window_icon()
         self._screen = pygame.display.set_mode((MENU_WIDTH, MENU_HEIGHT))
         pygame.display.set_caption("Waiting-Sim")
@@ -151,6 +153,7 @@ class ViewFacade:
                 elif event.type == pygame.KEYDOWN:
                     observer = self._key_observers.get(event.key)
                     if observer is not None:
+                        Audio.play("click")
                         observer()
 
             self._draw()

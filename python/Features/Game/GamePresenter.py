@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+import Audio
 from Entities import Station
 from Features.Game import GameOutputBoundry, GameViewModel
 
@@ -77,12 +78,17 @@ class GamePresenter(GameOutputBoundry):
         """Depart the winning train toward <destination>, travelling <seconds>."""
         self.view_model.set_incoming_train(destination, seconds)
 
+    def chime_arrival(self) -> None:
+        """Sound a soft chime as the player arrives at a station mid-game."""
+        Audio.play("soft_ding")
+
     def show_game_over(self, game_over: bool) -> None:
         """Clear the turn HUD and show only the closing message, or resume."""
         self.view_model.set_game_over(game_over)
 
     def say_reached_end(self, total_wait: float) -> None:
         """Announce the player reached the end after <total_wait> seconds."""
+        Audio.play("ding")
         self.view_model.add_message(
             f"You reached the end after waiting {total_wait:.1f}s total!"
         )

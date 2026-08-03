@@ -3,6 +3,7 @@ from typing import Callable
 
 import pygame
 
+import Audio
 from Features.Simulation import (
     SimulationController,
     SimulationPresenter,
@@ -134,20 +135,24 @@ class SimulationView:
             self._input_buffer = ""
         elif self._input_mode == "map":
             if not self._input_buffer.isdigit():
+                Audio.play("error")
                 return
             if int(self._input_buffer) not in self._controller.get_map_ids():
+                Audio.play("error")
                 return
             self._pending_map_id = int(self._input_buffer)
             self._input_mode = "trials"
             self._input_buffer = ""
         elif self._input_mode == "trials":
             if not self._input_buffer.isdigit() or int(self._input_buffer) == 0:
+                Audio.play("error")
                 return
             self._pending_trials = int(self._input_buffer)
             self._input_mode = "steps"
             self._input_buffer = ""
         elif self._input_mode == "steps":
             if not self._input_buffer.isdigit() or int(self._input_buffer) == 0:
+                Audio.play("error")
                 return
             self._pending_steps = int(self._input_buffer)
             self._input_mode = None
