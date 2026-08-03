@@ -106,6 +106,7 @@ class GameInteractor(GameInputBoundry):
         if player.station.end:
             self._win(player, rand_arrival)
         else:
+            self._presenter.chime_arrival()
             self._save_player(player, rand_arrival)
             self._presenter.prompt_to_continue()
 

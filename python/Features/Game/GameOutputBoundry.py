@@ -64,6 +64,10 @@ class GameOutputBoundry(ABC):
         """Depart the winning train toward <destination>, travelling <seconds>."""
 
     @abstractmethod
+    def chime_arrival(self) -> None:
+        """Sound a soft chime as the player arrives at a station mid-game."""
+
+    @abstractmethod
     def show_game_over(self, game_over: bool) -> None:
         """Clear the turn HUD and show only the closing message, or resume."""
 

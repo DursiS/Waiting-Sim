@@ -78,6 +78,10 @@ class GamePresenter(GameOutputBoundry):
         """Depart the winning train toward <destination>, travelling <seconds>."""
         self.view_model.set_incoming_train(destination, seconds)
 
+    def chime_arrival(self) -> None:
+        """Sound a soft chime as the player arrives at a station mid-game."""
+        Audio.play("soft_ding")
+
     def show_game_over(self, game_over: bool) -> None:
         """Clear the turn HUD and show only the closing message, or resume."""
         self.view_model.set_game_over(game_over)
