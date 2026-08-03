@@ -20,7 +20,6 @@ ARROW_LEN = 9
 ARROW_WID = 6
 TRAIN_W = 40
 TRAIN_H = 9
-TRAIN_TRAVEL_SECONDS = 1.0
 CONTROL_GAP = 54
 
 CONTROLS = (("P", "Play"), ("C", "Continue"), ("R", "Restart"), ("Q", "Quit"))
@@ -62,9 +61,10 @@ class GameViewModel:
     total_wait: float
     best_highscore: str
     loading: bool
-    incoming_train: tuple[Station | None, Station, int, float, float] | None
+    game_over: bool
+    incoming_train: tuple[Station | None, Station, int, float] | None
     last_train: tuple[str, str] | None
-    train_travel_seconds: float
+    roads: list[tuple[tuple[int, int], tuple[int, int]]]
     width: int
     height: int
     road_length: float
@@ -84,9 +84,10 @@ class GameViewModel:
         self.total_wait = 0.0
         self.best_highscore = "N/A"
         self.loading = False
+        self.game_over = False
         self.incoming_train = None
         self.last_train = None
-        self.train_travel_seconds = TRAIN_TRAVEL_SECONDS
+        self.roads = []
         self.road_length = ROAD_LENGTH
         self._running = False
         self._recompute_dimensions()
@@ -110,19 +111,27 @@ class GameViewModel:
         self.last_train = None
         self._recompute_dimensions()
 
+    def set_roads(
+        self, roads: list[tuple[tuple[int, int], tuple[int, int]]]
+    ) -> None:
+        """Set the roads to draw, each an ordered (from, to) coordinate pair.
+
+        One lane is drawn per road, so a connection roaded both ways shows dual
+        tracks and a one-way road shows a single lane."""
+        self.roads = roads
+
     def set_current_station(self, station: Station | None) -> None:
         """Set the player's station; the departing train has now completed."""
         self.curr_station = station
         self.incoming_train = None
 
-    def set_incoming_train(self, destination: Station, wait_seconds: float) -> None:
-        """Send the winning train from the player's station toward <destination>
-        -- the neighbour whose train arrived first -- over the configured travel
-        time. <wait_seconds> is the real wait, shown as the train's label."""
+    def set_incoming_train(self, destination: Station, travel_seconds: float) -> None:
+        """Depart the winning train -- the neighbour whose train arrived first --
+        from the player's station toward <destination>, animating it over
+        <travel_seconds>, the real time the ride spends travelling the line."""
         origin = self.curr_station
         self.incoming_train = (
-            origin, destination, pygame.time.get_ticks(),
-            self.train_travel_seconds, wait_seconds,
+            origin, destination, pygame.time.get_ticks(), travel_seconds,
         )
         self.last_train = (
             origin.name if origin is not None else "?", destination.name
@@ -156,32 +165,26 @@ class GameViewModel:
         """Show or hide the animated dots on the latest status line."""
         self.loading = loading
 
+    def set_game_over(self, game_over: bool) -> None:
+        """Mark the game finished, clearing the turn HUD so only the closing
+        message and its prompt are shown."""
+        self.game_over = game_over
+        if game_over:
+            self.loading = False
+            self.incoming_train = None
+            self.last_train = None
+
     def _node_pos(self, station: Station) -> tuple[int, int]:
         """Return the screen centre of <station> from its grid coordinates."""
-        x, y = station.coordinates
+        return self._node_pos_at(station.coordinates)
+
+    def _node_pos_at(self, coordinates: tuple[int, int]) -> tuple[int, int]:
+        """Return the screen centre of the node at grid <coordinates>."""
+        x, y = coordinates
         return (
             int(MARGIN_X + x * self.road_length),
             int(HUD_TOP_HEIGHT + NODE_TOP_PAD + y * self.road_length),
         )
-
-    def _road_length(self, from_station: Station, to_station: Station) -> float:
-        """Return the road length from <from_station> to <to_station>.
-
-        Per-connection and per-direction lengths will be stored here; a single
-        shared length is used for every road for now."""
-        return self.road_length
-
-    def _pairs(self) -> list[tuple[Station, Station]]:
-        """Return each grid-adjacent station pair exactly once."""
-        by_coord = {tuple(s.coordinates): s for s in self.stations}
-        pairs = []
-        for station in self.stations:
-            x, y = station.coordinates
-            for dx, dy in ((1, 0), (0, 1)):
-                neighbour = by_coord.get((x + dx, y + dy))
-                if neighbour is not None:
-                    pairs.append((station, neighbour))
-        return pairs
 
     def _truncate(
         self, text: str, font: pygame.font.Font, max_width: int
@@ -194,16 +197,16 @@ class GameViewModel:
         return text + "..."
 
     def _draw_tracks(self, screen: pygame.Surface) -> None:
-        """Draw every connection as two one-way roads, each drawn to its own
-        (currently shared) length with the arrow at its midpoint."""
-        for a, b in self._pairs():
-            ax, ay = self._node_pos(a)
-            bx, by = self._node_pos(b)
+        """Draw each road in the world as its own one-way lane with an arrow at
+        its midpoint, so a connection roaded both ways shows dual tracks while a
+        one-way road shows a single lane."""
+        for from_coord, to_coord in self.roads:
+            ax, ay = self._node_pos_at(from_coord)
+            bx, by = self._node_pos_at(to_coord)
             gap = math.hypot(bx - ax, by - ay) or 1
             ux, uy = (bx - ax) / gap, (by - ay) / gap
             px, py = -uy, ux
-            self._draw_road(screen, (ax, ay), (ux, uy), (px, py), self._road_length(a, b))
-            self._draw_road(screen, (bx, by), (-ux, -uy), (-px, -py), self._road_length(b, a))
+            self._draw_road(screen, (ax, ay), (ux, uy), (px, py), gap)
 
     def _draw_road(
         self,
@@ -291,7 +294,7 @@ class GameViewModel:
         destination, rotated to face its direction of travel."""
         if self.incoming_train is None:
             return
-        origin, destination, start_ticks, travel, wait_seconds = self.incoming_train
+        origin, destination, start_ticks, travel = self.incoming_train
         if origin is None:
             return
         elapsed = (pygame.time.get_ticks() - start_ticks) / 1000.0
@@ -311,7 +314,7 @@ class GameViewModel:
             self._make_train_surface(), math.degrees(math.atan2(-uy, ux))
         )
         screen.blit(sprite, sprite.get_rect(center=(int(x), int(y))))
-        label = label_font.render(f"{wait_seconds:.1f}s", True, TRAIN_LABEL_COLOR)
+        label = label_font.render(f"{travel:.1f}s", True, TRAIN_LABEL_COLOR)
         screen.blit(
             label, label.get_rect(midbottom=(int(x), int(y) - TRAIN_W // 2 - 2))
         )
@@ -370,8 +373,11 @@ class GameViewModel:
 
     def _status_lines(self) -> list[str]:
         """Return the HUD status: expected times, the winning train (from ->
-        to), and the actual wait, with dots while loading. Pre-turn and
+        to), the actual wait, and the ride's travel time while it is on its
+        way, with dots animating on the last line while loading. Pre-turn and
         terminal states fall back to the latest messages."""
+        if self.game_over:
+            return self.messages[-3:]
         latest = self.messages[-1] if self.messages else ""
         terminal = any(
             key in latest for key in ("reached the end", "No current save", "Quitting")
@@ -390,6 +396,9 @@ class GameViewModel:
             waits = self._latest_message("Wait times")
             if waits is not None:
                 lines.append(waits)
+            travelling = self._latest_message("Travelling to")
+            if travelling is not None and self.incoming_train is not None:
+                lines.append(travelling)
             if not lines:
                 lines = self.messages[-2:]
         if self.loading and lines:

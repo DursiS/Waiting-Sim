@@ -32,5 +32,9 @@ class GameInputBoundry(ABC):
         """Return every station in the world."""
 
     @abstractmethod
+    def get_world_roads(self) -> list[tuple[tuple[int, int], tuple[int, int]]]:
+        """Return each road as an ordered (from, to) pair of grid coordinates."""
+
+    @abstractmethod
     def get_map_ids(self) -> list[int]:
         """Return the ids of every selectable map."""

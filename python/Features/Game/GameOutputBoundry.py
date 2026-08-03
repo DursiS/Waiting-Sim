@@ -38,6 +38,12 @@ class GameOutputBoundry(ABC):
         """Show <stations> as the map the player is on."""
 
     @abstractmethod
+    def show_roads(
+        self, roads: list[tuple[tuple[int, int], tuple[int, int]]]
+    ) -> None:
+        """Draw the world's roads, each an ordered (from, to) coordinate pair."""
+
+    @abstractmethod
     def show_player_station(self, station: Station) -> None:
         """Highlight <station> as the player's current location."""
 
@@ -55,11 +61,19 @@ class GameOutputBoundry(ABC):
 
     @abstractmethod
     def show_incoming_train(self, destination: Station, seconds: float) -> None:
-        """Send the winning train toward <destination> for the <seconds> wait."""
+        """Depart the winning train toward <destination>, travelling <seconds>."""
+
+    @abstractmethod
+    def show_game_over(self, game_over: bool) -> None:
+        """Clear the turn HUD and show only the closing message, or resume."""
 
     @abstractmethod
     def say_reached_end(self, total_wait: float) -> None:
         """Announce the player reached the end after <total_wait> seconds."""
+
+    @abstractmethod
+    def say_already_finished(self) -> None:
+        """Tell the player this game is over, so there is nothing to continue."""
 
     @abstractmethod
     def say_expected_times(self, expected_times: list[tuple[str, float]]) -> None:
@@ -68,6 +82,10 @@ class GameOutputBoundry(ABC):
     @abstractmethod
     def say_time_waited(self, t_waited: timedelta, destination: str) -> None:
         """Add a message describing how long the player waited."""
+
+    @abstractmethod
+    def say_travelling(self, t_travel: timedelta, destination: str) -> None:
+        """Add a message describing how long the ride to <destination> takes."""
 
     @abstractmethod
     def say_percentile_wait(self) -> None:

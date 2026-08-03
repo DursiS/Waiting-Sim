@@ -3,6 +3,8 @@ from datetime import timedelta
 from Entities import Station
 from Features.Game import GameOutputBoundry, GameViewModel
 
+REPLAY_PROMPT = "Press R to restart this map, P to play a different map, or Q to quit."
+
 
 class GamePresenter(GameOutputBoundry):
     view_model: GameViewModel
@@ -46,6 +48,12 @@ class GamePresenter(GameOutputBoundry):
         """Show <stations> as the map the player is on."""
         self.view_model.set_stations(stations)
 
+    def show_roads(
+        self, roads: list[tuple[tuple[int, int], tuple[int, int]]]
+    ) -> None:
+        """Draw the world's roads, each an ordered (from, to) coordinate pair."""
+        self.view_model.set_roads(roads)
+
     def show_player_station(self, station: Station) -> None:
         """Highlight <station> as the player's current location."""
         self.view_model.set_current_station(station)
@@ -66,17 +74,26 @@ class GamePresenter(GameOutputBoundry):
         self.view_model.set_loading(loading)
 
     def show_incoming_train(self, destination: Station, seconds: float) -> None:
-        """Send the winning train toward <destination> for the <seconds> wait."""
+        """Depart the winning train toward <destination>, travelling <seconds>."""
         self.view_model.set_incoming_train(destination, seconds)
+
+    def show_game_over(self, game_over: bool) -> None:
+        """Clear the turn HUD and show only the closing message, or resume."""
+        self.view_model.set_game_over(game_over)
 
     def say_reached_end(self, total_wait: float) -> None:
         """Announce the player reached the end after <total_wait> seconds."""
         self.view_model.add_message(
             f"You reached the end after waiting {total_wait:.1f}s total!"
         )
+        self.view_model.add_message(REPLAY_PROMPT)
+
+    def say_already_finished(self) -> None:
+        """Tell the player this game is over, so there is nothing to continue."""
         self.view_model.add_message(
-            "Press R to restart, P for a new game, or Q to quit."
+            "You are already at the end -- this game is finished."
         )
+        self.view_model.add_message(REPLAY_PROMPT)
 
     def say_expected_times(self, expected_times: list[tuple[str, float]]) -> None:
         """Add a message describing the expected wait time to each neighbour."""
@@ -87,6 +104,14 @@ class GamePresenter(GameOutputBoundry):
         """Add a message describing how long the player waited."""
         self.view_model.add_message(
             f"You waited {t_waited.total_seconds():.1f}s for your ride to arrive to {destination}"
+        )
+
+    def say_travelling(self, t_travel: timedelta, destination: str) -> None:
+        """Add a message describing how long the ride to <destination> takes.
+
+        The trailing dots are animated by the view model while travelling."""
+        self.view_model.add_message(
+            f"Travelling to {destination} -- {t_travel.total_seconds():.1f}s"
         )
 
     def say_percentile_wait(self) -> None:
