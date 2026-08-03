@@ -62,5 +62,13 @@
     "rule_params": {"low": 1, "high": 5},
     "times_visited": 0,
     "waited_at": 0
+  },
+  "8": {
+    "id": 8,
+    "name": "Sudden Siding",
+    "rule_name": "binomial",
+    "rule_params": {"n": 8, "p": 0.65},
+    "times_visited": 0,
+    "waited_at": 0
   }
 }
