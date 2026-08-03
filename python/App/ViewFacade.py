@@ -153,6 +153,7 @@ class ViewFacade:
                 elif event.type == pygame.KEYDOWN:
                     observer = self._key_observers.get(event.key)
                     if observer is not None:
+                        Audio.play("click")
                         observer()
 
             self._draw()
