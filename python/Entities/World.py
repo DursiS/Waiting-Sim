@@ -34,7 +34,7 @@ class World:
         """Create an empty World."""
         self._stations = []
         self._by_coordinate = {}
-        self._lines = []
+        self._lines = {}
 
     def add_station(self, station: Station) -> bool:
         """Add <station>, return whether its grid position was free."""

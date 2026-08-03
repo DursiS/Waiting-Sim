@@ -34,15 +34,11 @@
     "end": 1,
     "stations": {
       "3": {"coordinates": [0, 0], "roads": [{"to": 5, "length": 220}]},
-      "5": {"coordinates": [1, 0], "roads": [{"to": 3, "length": 220}, {"to": 4, "length": 220}, {"to": 0, "length": 600}]},
-      "4": {"coordinates": [2, 0], "roads": [{"to": 5, "length": 220}, {"to": 2, "length": 220}]},
-      "2": {"coordinates": [3, 0], "roads": [{"to": 4, "length": 220}, {"to": 1, "length": 220}, {"to": 8, "length": 300}]},
+      "5": {"coordinates": [1, 0], "roads": [{"to": 3, "length": 220}, {"to": 4, "length": 220}]},
+      "4": {"coordinates": [2, 0], "roads": [{"to": 5, "length": 220}, {"to": 2, "length": 220}, {"to": 8, "length": 1000}]},
+      "2": {"coordinates": [3, 0], "roads": [{"to": 4, "length": 220}, {"to": 1, "length": 220}]},
       "1": {"coordinates": [4, 0], "roads": [{"to": 2, "length": 220}]},
-      "8": {"coordinates": [3, 1], "roads": [{"to": 2, "length": 300}, {"to": 6, "length": 600}]},
-      "6": {"coordinates": [3, 2], "roads": [{"to": 8, "length": 600}, {"to": 9, "length": 600}]},
-      "9": {"coordinates": [2, 2], "roads": [{"to": 6, "length": 600}, {"to": 7, "length": 600}]},
-      "7": {"coordinates": [1, 2], "roads": [{"to": 9, "length": 600}, {"to": 0, "length": 600}]},
-      "0": {"coordinates": [1, 1], "roads": [{"to": 7, "length": 600}, {"to": 5, "length": 600}]}
+      "8": {"coordinates": [2, 1], "roads": [{"to": 4, "length": 1000}]}
     }
   }
 }

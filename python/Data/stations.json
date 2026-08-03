@@ -67,15 +67,7 @@
     "id": 8,
     "name": "Sudden Siding",
     "rule_name": "binomial",
-    "rule_params": {"n": 7, "p": 0.6},
-    "times_visited": 0,
-    "waited_at": 0
-  },
-  "9": {
-    "id": 9,
-    "name": "Roulette Reach",
-    "rule_name": "discrete_uniform",
-    "rule_params": {"low": 1, "high": 9},
+    "rule_params": {"n": 8, "p": 0.65},
     "times_visited": 0,
     "waited_at": 0
   }
