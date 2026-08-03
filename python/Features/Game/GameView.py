@@ -198,6 +198,7 @@ class GameView:
 
     def on_quit(self) -> None:
         """Action Listener to quit"""
+        Audio.play("click")
         self._running = False
 
     def on_continue(self) -> None:

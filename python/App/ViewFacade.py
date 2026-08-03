@@ -4,6 +4,7 @@ from typing import Callable
 import pygame
 
 import Audio
+from App.VolumeSlider import VolumeSlider
 from Features.Game import GameView
 from Features.Simulation import SimulationView
 
@@ -85,6 +86,7 @@ class ViewFacade:
     _showing_about: bool
     _key_observers: dict
     _logo: pygame.Surface | None
+    _volume_slider: VolumeSlider
 
     def __init__(
         self,
@@ -109,8 +111,20 @@ class ViewFacade:
         self._screen = pygame.display.set_mode((MENU_WIDTH, MENU_HEIGHT))
         pygame.display.set_caption("Waiting-Sim")
         self._logo = self._load_logo()
+        self._volume_slider = VolumeSlider()
         self.keydown_loop()
+        self._drain_audio()
         pygame.quit()
+
+    def _drain_audio(self) -> None:
+        """Let a final effect (such as the quit click) finish before the mixer
+        is torn down, waiting briefly and stopping early once it is silent."""
+        if not pygame.mixer.get_init():
+            return
+        for _ in range(20):
+            if not pygame.mixer.get_busy():
+                return
+            pygame.time.wait(10)
 
     def _load_logo(self) -> pygame.Surface | None:
         """Return the app logo scaled to fit the menu, or None when missing."""
@@ -155,6 +169,15 @@ class ViewFacade:
                     if observer is not None:
                         Audio.play("click")
                         observer()
+                elif event.type in (
+                    pygame.MOUSEBUTTONDOWN,
+                    pygame.MOUSEBUTTONUP,
+                    pygame.MOUSEMOTION,
+                ):
+                    if not self._showing_about:
+                        self._volume_slider.handle_event(
+                            event, self._screen.get_width()
+                        )
 
             self._draw()
             pygame.display.flip()
@@ -222,6 +245,7 @@ class ViewFacade:
         width, height = self._screen.get_size()
 
         self._draw_logo(width, height)
+        self._volume_slider.draw(self._screen)
 
         prompt_font = pygame.font.SysFont(None, 30)
         prompt = prompt_font.render(
