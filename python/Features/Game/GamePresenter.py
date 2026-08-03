@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+import Audio
 from Entities import Station
 from Features.Game import GameOutputBoundry, GameViewModel
 
@@ -83,6 +84,7 @@ class GamePresenter(GameOutputBoundry):
 
     def say_reached_end(self, total_wait: float) -> None:
         """Announce the player reached the end after <total_wait> seconds."""
+        Audio.play("ding")
         self.view_model.add_message(
             f"You reached the end after waiting {total_wait:.1f}s total!"
         )
