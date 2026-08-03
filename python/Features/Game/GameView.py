@@ -4,6 +4,7 @@ from typing import Callable
 
 import pygame
 
+import Audio
 from Features.Game import (
     GameController,
     GamePresenter,
@@ -158,20 +159,24 @@ class GameView:
             self._input_buffer = ""
         elif self._input_mode == "map":
             if not self._input_buffer.isdigit():
+                Audio.play("error")
                 return
             if int(self._input_buffer) not in self._controller.get_map_ids():
+                Audio.play("error")
                 return
             self._pending_map_id = int(self._input_buffer)
             self._input_mode = "arrival"
             self._input_buffer = ""
         elif self._input_mode == "arrival":
             if self._input_buffer.lower() not in ("y", "n"):
+                Audio.play("error")
                 return
             self._pending_rand_arrival = self._input_buffer.lower() == "y"
             self._input_mode = "auto"
             self._input_buffer = ""
         elif self._input_mode == "auto":
             if self._input_buffer.lower() not in ("y", "n"):
+                Audio.play("error")
                 return
             self._auto_step = self._input_buffer.lower() == "y"
             self._input_mode = None
