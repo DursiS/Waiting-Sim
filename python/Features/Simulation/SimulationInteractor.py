@@ -117,7 +117,7 @@ class SimulationInteractor(SimulationInputBoundry):
                     count[step_data.to_station.id] += 1
                     stations[step_data.from_station.id] = step_data.from_station
 
-        return stations[np.argmax(count)]
+        return stations[max(count, key=count.get)]
 
     def _residual_squared_distribution(
         self,
@@ -336,14 +336,17 @@ class SimulationInteractor(SimulationInputBoundry):
         starting at <_from>."""
         world_stations = self._world.get_stations()
         size = len(world_stations)
+        index = {station.id: k for k, station in enumerate(world_stations)}
         Q = np.zeros((size, size))
 
         for station_j in world_stations:
             neighbours = self._world.adjacent_stations(station_j)
             rules = [neighbour.rule for neighbour in neighbours]
             for k, neighbour in enumerate(neighbours):
-                Q[neighbour.id, station_j.id] = self._probability_is_fastest(
-                    rules[k], rules[:k] + rules[k + 1 :]
+                Q[index[neighbour.id], index[station_j.id]] = (
+                    self._probability_is_fastest(
+                        rules[k], rules[:k] + rules[k + 1 :]
+                    )
                 )
 
         column_sums = Q.sum(axis=0)
