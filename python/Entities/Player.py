@@ -12,6 +12,7 @@ class Player:
     station: Station
     time_waited: timedelta
     stations_visited: dict[int, bool]
+    balance: float
 
     def __init__(
         self,
@@ -23,6 +24,7 @@ class Player:
         self.time_waited = timedelta(seconds=0)
         self.stations_visited = {}
         self.id = random.randint(1, 10**5)
+        self.balance = 0
 
     def move(self, new_station: Station) -> bool:
         """Move the player onto <new_station> and mark it visited."""
@@ -57,3 +59,9 @@ class Player:
             for station_id, visited in data["stations_visited"].items()
         }
         return player
+
+    def get_balance(self) -> float:
+        return self.balance
+
+    def add_to_balance(self, n: float) -> None:
+        self.balance += n
