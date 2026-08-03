@@ -1,7 +1,7 @@
 import random
 from datetime import timedelta
 
-from Entities import Station, World, Player, Line
+from Entities import GameState, Station, World, Player, Line
 from Features.Game import GameInputBoundry, GameOutputBoundry
 from Data import WorldDataAccessInterface
 
@@ -161,6 +161,47 @@ class GameInteractor(GameInputBoundry):
         self._presenter.clear_messages()
         self._presenter.say_explanation()
         self._presenter.prompt_to_continue()
+
+    def execute_new_gamble_game(self) -> GameState:
+        """Prompt for a name and map, then run a whole game automatically to the
+        end and return its outcome for the betting system.
+
+        There is no per-turn prompting, no animation, no real waiting and no
+        quit/restart/play-again: random arrival is off and play is fully
+        automatic, so a bettor cannot steer the game to game their bets. The
+        returned state carries no phase id yet -- the caller stamps it."""
+        name = input("Name: ").strip() or "Player1"
+        self._load_map(self._prompt_gamble_map_id())
+        player = Player(
+            name=name,
+            starting_station=self._instantiate_station(
+                self._dao.get_record(self._spawn_station_id())
+            ),
+        )
+
+        end_steps = 0
+        while not player.station.end:
+            t_waited, destination = self._fastest(
+                self._neighbour_wait_times(player, False)
+            )
+            t_travel = self._time_spent_traveling(player, destination)
+            player.time_waited += t_waited + t_travel
+            player.move(self._instantiate_station(self._dao.get_record(destination.id)))
+            end_steps += 1
+
+        return GameState(
+            phase_id=-1,
+            end_steps=end_steps,
+            wait_time=player.time_waited.total_seconds(),
+        )
+
+    def _prompt_gamble_map_id(self) -> int:
+        """Prompt for one of the selectable map ids, re-asking until valid."""
+        ids = self.get_map_ids()
+        while True:
+            raw = input(f"Map id {ids}: ").strip()
+            if raw.isdigit() and int(raw) in ids:
+                return int(raw)
 
     def _present_wait_stats(self) -> None:
         """Feed the presenter the map's per-station and total wait statistics."""
