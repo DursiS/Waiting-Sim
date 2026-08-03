@@ -1,4 +1,5 @@
 import threading
+import time
 from typing import Callable
 
 import pygame
@@ -11,6 +12,7 @@ from Features.Game import (
 )
 
 
+AUTO_STEP_SECONDS = 1.0
 INPUT_BG_COLOR = (0, 0, 0)
 INPUT_TEXT_COLOR = (255, 255, 255)
 
@@ -28,6 +30,9 @@ class GameView:
     _input_buffer: str
     _pending_name: str
     _pending_map_id: int
+    _pending_rand_arrival: bool
+    _auto_step: bool
+    _last_turn_end: float
 
     def __init__(
         self,
@@ -45,6 +50,9 @@ class GameView:
         self._input_buffer = ""
         self._pending_name = ""
         self._pending_map_id = 0
+        self._pending_rand_arrival = False
+        self._auto_step = False
+        self._last_turn_end = time.perf_counter()
 
         self._view_model = view_model
         self._clock = pygame.time.Clock()
@@ -72,6 +80,8 @@ class GameView:
                     elif event.key == pygame.K_r:
                         self.on_restart()
 
+            self._auto_step_if_due()
+
             if self._screen.get_size() != (
                 self._view_model.width,
                 self._view_model.height,
@@ -96,9 +106,21 @@ class GameView:
             try:
                 action()
             finally:
+                self._last_turn_end = time.perf_counter()
                 self._busy = False
 
         threading.Thread(target=worker, daemon=True).start()
+
+    def _auto_step_if_due(self) -> None:
+        """Press continue for the player once a finished turn has been on
+        screen for the auto-step delay."""
+        if not self._auto_step or self._busy or self._input_mode is not None:
+            return
+        if self._view_model.game_over:
+            return
+        if time.perf_counter() - self._last_turn_end < AUTO_STEP_SECONDS:
+            return
+        self.on_continue()
 
     def _draw_input_prompt(self) -> None:
         """Draw the field currently being typed into over the current view."""
@@ -109,6 +131,7 @@ class GameView:
             label = {
                 "name": "Name",
                 "arrival": "Random arrival? (y/n)",
+                "auto": "Auto-step every 1s? (y/n)",
             }.get(self._input_mode, "")
         font = pygame.font.SysFont(None, 28)
         text = font.render(f"{label}: {self._input_buffer}_", True, INPUT_TEXT_COLOR)
@@ -144,10 +167,17 @@ class GameView:
         elif self._input_mode == "arrival":
             if self._input_buffer.lower() not in ("y", "n"):
                 return
-            rand_arrival = self._input_buffer.lower() == "y"
+            self._pending_rand_arrival = self._input_buffer.lower() == "y"
+            self._input_mode = "auto"
+            self._input_buffer = ""
+        elif self._input_mode == "auto":
+            if self._input_buffer.lower() not in ("y", "n"):
+                return
+            self._auto_step = self._input_buffer.lower() == "y"
             self._input_mode = None
             self._input_buffer = ""
 
+            rand_arrival = self._pending_rand_arrival
             self._run_in_background(
                 lambda: self._controller.handle_new_game(
                     self._pending_name, self._pending_map_id, rand_arrival

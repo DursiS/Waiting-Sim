@@ -1,5 +1,5 @@
 from App import ViewFacade
-from Data import AccessWaitRules
+from Data import WorldDataAccess
 from Features.Game import (
     GameController,
     GameInteractor,
@@ -34,11 +34,12 @@ class WaitingSimulatorBuilder:
         game_view_model = GameViewModel()
         game_presenter = GamePresenter(game_view_model)
         game_interactor = GameInteractor(
-            dao=AccessWaitRules(),
+            dao=WorldDataAccess(),
             presenter=game_presenter,
         )
         game_controller = GameController(game_interactor)
         game_view_model.set_stations(game_controller.get_stations())
+        game_view_model.set_roads(game_controller.get_roads())
         game_view = GameView(
             controller=game_controller,
             presenter=game_presenter,
@@ -52,7 +53,7 @@ class WaitingSimulatorBuilder:
         sim_view_model = SimulationViewModel()
         sim_presenter = SimulationPresenter(sim_view_model)
         sim_interactor = SimulationInteractor(
-            dao=AccessWaitRules(),
+            dao=WorldDataAccess(),
             presenter=sim_presenter,
         )
         sim_controller = SimulationController(sim_interactor)

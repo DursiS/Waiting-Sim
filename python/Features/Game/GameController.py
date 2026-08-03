@@ -36,6 +36,10 @@ class GameController:
         """Return every station in the world."""
         return self.input_boundry.get_world_stations()
 
+    def get_roads(self) -> list[tuple[tuple[int, int], tuple[int, int]]]:
+        """Return each road as an ordered (from, to) pair of grid coordinates."""
+        return self.input_boundry.get_world_roads()
+
     def get_map_ids(self) -> list[int]:
         """Return the ids of every selectable map."""
         return self.input_boundry.get_map_ids()

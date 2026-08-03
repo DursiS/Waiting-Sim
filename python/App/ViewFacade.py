@@ -1,3 +1,4 @@
+import os
 from typing import Callable
 
 import pygame
@@ -6,6 +7,10 @@ from Features.Game import GameView
 from Features.Simulation import SimulationView
 
 
+ICON_PATH = os.path.join(os.path.dirname(__file__), "test.jpg")
+ICON_SIZE = 32
+LOGO_MAX_WIDTH = 560
+LOGO_MAX_HEIGHT = 300
 MENU_WIDTH = 760
 MENU_HEIGHT = 520
 BG_COLOR = (24, 24, 28)
@@ -78,6 +83,7 @@ class ViewFacade:
     _running: bool
     _showing_about: bool
     _key_observers: dict
+    _logo: pygame.Surface | None
 
     def __init__(
         self,
@@ -97,10 +103,44 @@ class ViewFacade:
         }
 
         pygame.init()
+        self._set_window_icon()
         self._screen = pygame.display.set_mode((MENU_WIDTH, MENU_HEIGHT))
         pygame.display.set_caption("Waiting-Sim")
+        self._logo = self._load_logo()
         self.keydown_loop()
         pygame.quit()
+
+    def _load_logo(self) -> pygame.Surface | None:
+        """Return the app logo scaled to fit the menu, or None when missing."""
+        if not os.path.exists(ICON_PATH):
+            return None
+        image = pygame.image.load(ICON_PATH).convert()
+        width, height = image.get_size()
+        scale = min(LOGO_MAX_WIDTH / width, LOGO_MAX_HEIGHT / height)
+        return pygame.transform.smoothscale(
+            image, (round(width * scale), round(height * scale))
+        )
+
+    def _load_icon(self) -> pygame.Surface | None:
+        """Return the app logo as a square icon keeping its aspect ratio,
+        or None when the image is missing."""
+        if not os.path.exists(ICON_PATH):
+            return None
+        image = pygame.image.load(ICON_PATH)
+        width, height = image.get_size()
+        scale = ICON_SIZE / max(width, height)
+        scaled = pygame.transform.smoothscale(
+            image, (max(round(width * scale), 1), max(round(height * scale), 1))
+        )
+        icon = pygame.Surface((ICON_SIZE, ICON_SIZE), pygame.SRCALPHA)
+        icon.blit(scaled, scaled.get_rect(center=(ICON_SIZE // 2, ICON_SIZE // 2)))
+        return icon
+
+    def _set_window_icon(self) -> None:
+        """Set the app logo as the icon for every window the app opens."""
+        icon = self._load_icon()
+        if icon is not None:
+            pygame.display.set_icon(icon)
 
     def keydown_loop(self) -> None:
         """Listen for keypresses, notify the bound observer, and redraw."""
@@ -145,10 +185,14 @@ class ViewFacade:
                 )
                 pygame.draw.rect(self._screen, color, block)
 
-    def _draw_menu(self) -> None:
-        """Draw the titled Game/Simulation/Quit menu with the train logo."""
-        self._screen.fill(BG_COLOR)
-        width, height = self._screen.get_size()
+    def _draw_logo(self, width: int, height: int) -> None:
+        """Draw the logo image centred above the prompt, falling back to the
+        pixel-art train and rendered title when the image is missing."""
+        if self._logo is not None:
+            self._screen.blit(
+                self._logo, self._logo.get_rect(center=(width // 2, (height - 90) // 2))
+            )
+            return
 
         title_font = pygame.font.SysFont("consolas", 60, bold=True)
         title = title_font.render("Waiting-Sim", True, TITLE_COLOR)
@@ -168,6 +212,13 @@ class ViewFacade:
             (train_x + train_width + 20, train_y + train_height + 2),
             3,
         )
+
+    def _draw_menu(self) -> None:
+        """Draw the Game/Simulation/Quit menu beneath the app logo."""
+        self._screen.fill(BG_COLOR)
+        width, height = self._screen.get_size()
+
+        self._draw_logo(width, height)
 
         prompt_font = pygame.font.SysFont(None, 30)
         prompt = prompt_font.render(
