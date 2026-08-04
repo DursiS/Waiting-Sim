@@ -14,6 +14,13 @@ from Features.Simulation import (
     SimulationView,
     SimulationViewModel,
 )
+from Features.Gamble import (
+    GambleController,
+    GambleInteractor,
+    GamblePresenter,
+    GambleView,
+    GambleViewModel,
+)
 
 
 class WaitingSimulatorBuilder:
@@ -27,6 +34,7 @@ class WaitingSimulatorBuilder:
         self.view_facade = ViewFacade(
             game_view_factory=self.build_game,
             simulation_view_factory=self.build_simulation,
+            gamble_view_factory=self.build_gamble,
         )
 
     def build_game(self) -> GameView:
@@ -47,6 +55,19 @@ class WaitingSimulatorBuilder:
             view_model=game_view_model,
         )
         return game_view
+
+    def build_gamble(self) -> GambleView:
+        """Build a new GambleView."""
+        gamble_view_model = GambleViewModel()
+        gamble_presenter = GamblePresenter(gamble_view_model)
+        gamble_interactor = GambleInteractor(gamble_presenter)
+        gamble_controller = GambleController(gamble_interactor)
+        return GambleView(
+            controller=gamble_controller,
+            presenter=gamble_presenter,
+            interactor=gamble_interactor,
+            view_model=gamble_view_model,
+        )
 
     def build_simulation(self) -> SimulationView:
         """Build a new SimulationView."""

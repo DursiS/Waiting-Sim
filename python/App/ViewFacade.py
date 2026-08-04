@@ -80,6 +80,7 @@ class ViewFacade:
 
     _game_view_factory: Callable[[], GameView]
     _simulation_view_factory: Callable[[], SimulationView]
+    _gamble_view_factory: Callable[[], object]
     _busy: bool
     _running: bool
     _showing_about: bool
@@ -90,9 +91,11 @@ class ViewFacade:
         self,
         game_view_factory: Callable[[], GameView],
         simulation_view_factory: Callable[[], SimulationView],
+        gamble_view_factory: Callable[[], object],
     ) -> None:
         self._game_view_factory = game_view_factory
         self._simulation_view_factory = simulation_view_factory
+        self._gamble_view_factory = gamble_view_factory
         self._busy = False
         self._running = True
         self._showing_about = False
@@ -100,6 +103,7 @@ class ViewFacade:
             pygame.K_q: self.on_quit,
             pygame.K_g: self.on_game,
             pygame.K_s: self.on_simulation,
+            pygame.K_b: self.on_gamble,
             pygame.K_o: self.on_about,
         }
 
@@ -225,7 +229,7 @@ class ViewFacade:
 
         prompt_font = pygame.font.SysFont(None, 30)
         prompt = prompt_font.render(
-            "G Game     S Simulation     O About     Q Quit",
+            "G Game   S Simulation   B Gamble   O About   Q Quit",
             True,
             PROMPT_COLOR,
         )
@@ -290,6 +294,20 @@ class ViewFacade:
         try:
             self._showing_about = False
             self._simulation_view_factory()
+            self._screen = pygame.display.set_mode((MENU_WIDTH, MENU_HEIGHT))
+            pygame.display.set_caption("Waiting-Sim")
+        finally:
+            self._busy = False
+
+    def on_gamble(self) -> None:
+        """Action Listener to launch gamble mode. Blocks until the user quits
+        back out of it, then reclaims the display for the menu."""
+        if self._busy:
+            return
+        self._busy = True
+        try:
+            self._showing_about = False
+            self._gamble_view_factory()
             self._screen = pygame.display.set_mode((MENU_WIDTH, MENU_HEIGHT))
             pygame.display.set_caption("Waiting-Sim")
         finally:
