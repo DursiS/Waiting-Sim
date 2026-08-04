@@ -42,6 +42,7 @@ TRAIN_COLOR = (240, 205, 90)
 TRAIN_BORDER_COLOR = (60, 50, 24)
 TRAIN_LABEL_COLOR = (240, 224, 170)
 TOTAL_WAIT_COLOR = (255, 235, 150)
+BET_RESULT_COLOR = (250, 220, 130)
 BEST_SCORE_COLOR = (150, 235, 170)
 STATUS_COLOR = (200, 212, 228)
 KEY_COLOR = (250, 210, 90)
@@ -65,6 +66,9 @@ class GameViewModel:
     incoming_train: tuple[Station | None, Station, int, float] | None
     last_train: tuple[str, str] | None
     roads: list[tuple[tuple[int, int], tuple[int, int]]]
+    controls: tuple[tuple[str, str], ...]
+    bet_result: str | None
+    show_best: bool
     width: int
     height: int
     road_length: float
@@ -88,9 +92,24 @@ class GameViewModel:
         self.incoming_train = None
         self.last_train = None
         self.roads = []
+        self.controls = CONTROLS
+        self.bet_result = None
+        self.show_best = True
         self.road_length = ROAD_LENGTH
         self._running = False
         self._recompute_dimensions()
+
+    def set_controls(self, controls: tuple[tuple[str, str], ...]) -> None:
+        """Replace the bottom control hints (e.g. only Restart/Quit)."""
+        self.controls = controls
+
+    def set_bet_result(self, bet_result: str | None) -> None:
+        """Set the gamble result line shown in the HUD, or clear it."""
+        self.bet_result = bet_result
+
+    def set_show_best(self, show_best: bool) -> None:
+        """Show or hide the best-completion line in the HUD."""
+        self.show_best = show_best
 
     def _recompute_dimensions(self) -> None:
         """Size the window to the station layout plus the HUD bars."""
@@ -334,10 +353,17 @@ class GameViewModel:
             f"Total wait: {self.total_wait:.1f}s", True, TOTAL_WAIT_COLOR
         )
         screen.blit(total, (24, 20))
-        best = hud_font.render(f"Best: {self.best_highscore}", True, BEST_SCORE_COLOR)
-        screen.blit(best, (24, 20 + total.get_height() + 8))
+        best_width = 0
+        if self.show_best:
+            best = hud_font.render(f"Best: {self.best_highscore}", True, BEST_SCORE_COLOR)
+            screen.blit(best, (24, 20 + total.get_height() + 8))
+            best_width = best.get_width()
 
-        status_x = 24 + max(total.get_width(), best.get_width()) + 40
+        if self.bet_result is not None:
+            result = hud_font.render(self.bet_result, True, BET_RESULT_COLOR)
+            screen.blit(result, result.get_rect(midtop=(self.width // 2, 16)))
+
+        status_x = 24 + max(total.get_width(), best_width) + 40
         status_width = self.width - status_x - 24
         y = 22
         for line in self._status_lines():
@@ -355,7 +381,7 @@ class GameViewModel:
         cy = bar_top + BOTTOM_BAR_HEIGHT // 2
 
         items = []
-        for key, label in CONTROLS:
+        for key, label in self.controls:
             key_surf = font.render(key, True, KEY_COLOR)
             label_surf = font.render(label, True, CONTROL_LABEL_COLOR)
             items.append(

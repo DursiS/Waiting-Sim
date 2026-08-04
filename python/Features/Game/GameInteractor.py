@@ -162,16 +162,16 @@ class GameInteractor(GameInputBoundry):
         self._presenter.say_explanation()
         self._presenter.prompt_to_continue()
 
-    def execute_new_gamble_game(self) -> GameState:
-        """Prompt for a name and map, then run a whole game automatically to the
-        end and return its outcome for the betting system.
+    def execute_new_gamble_game(self, name: str, map_id: int) -> GameState:
+        """Run a whole game automatically to the end on <map_id> as <name> and
+        return its outcome for the betting system.
 
-        There is no per-turn prompting, no animation, no real waiting and no
-        quit/restart/play-again: random arrival is off and play is fully
-        automatic, so a bettor cannot steer the game to game their bets. The
-        returned state carries no phase id yet -- the caller stamps it."""
-        name = input("Name: ").strip() or "Player1"
-        self._load_map(self._prompt_gamble_map_id())
+        There is no prompting, animation, real waiting or quit/restart/play
+        again: random arrival is off and play is fully automatic, so a bettor
+        cannot steer the game to game their bets. The returned state carries no
+        phase id yet -- the caller stamps it. Prompting for the name and map is
+        done up front through the gamble presenter, per Clean Architecture."""
+        self._load_map(map_id)
         player = Player(
             name=name,
             starting_station=self._instantiate_station(
@@ -195,13 +195,58 @@ class GameInteractor(GameInputBoundry):
             wait_time=player.time_waited.total_seconds(),
         )
 
-    def _prompt_gamble_map_id(self) -> int:
-        """Prompt for one of the selectable map ids, re-asking until valid."""
-        ids = self.get_map_ids()
-        while True:
-            raw = input(f"Map id {ids}: ").strip()
-            if raw.isdigit() and int(raw) in ids:
-                return int(raw)
+    def setup_gamble_game(self, name: str, map_id: int) -> None:
+        """Set up an automatic game to be played turn by turn for a gamble,
+        presenting the starting map and player."""
+        self._load_map(map_id)
+        self._gamble_player = Player(
+            name=name,
+            starting_station=self._instantiate_station(
+                self._dao.get_record(self._spawn_station_id())
+            ),
+        )
+        self._gamble_steps = 0
+        self._presenter.clear_messages()
+        self._presenter.show_player_station(self._gamble_player.station)
+        self._presenter.show_total_wait(0.0)
+
+    def gamble_turn(self) -> bool:
+        """Play one animated turn of the gamble game -- waiting for the fastest
+        train then travelling it -- and return whether the end was reached.
+
+        This is the animated auto-play reused fluff-free: it waits and travels
+        in real time with the same presenter updates as a normal turn, but
+        keeps no save, highscore or continue prompt."""
+        player = self._gamble_player
+        t_waited, destination = self._fastest(self._neighbour_wait_times(player, False))
+        t_travel = self._time_spent_traveling(player, destination)
+
+        self._presenter.clear_messages()
+        self._presenter.say_waiting()
+        self._presenter.show_loading(True)
+        player.wait(t_waited)
+
+        self._presenter.show_loading(False)
+        self._presenter.say_time_waited(t_waited, destination.name)
+        self._presenter.say_travelling(t_travel, destination.name)
+        self._presenter.show_incoming_train(destination, t_travel.total_seconds())
+        self._presenter.show_loading(True)
+        player.wait(t_travel)
+        self._presenter.show_loading(False)
+
+        player.move(self._instantiate_station(self._dao.get_record(destination.id)))
+        self._presenter.show_player_station(player.station)
+        self._presenter.show_total_wait(player.time_waited.total_seconds())
+        self._gamble_steps += 1
+        return player.station.end
+
+    def gamble_result(self) -> GameState:
+        """Return the finished gamble game's outcome."""
+        return GameState(
+            phase_id=-1,
+            end_steps=self._gamble_steps,
+            wait_time=self._gamble_player.time_waited.total_seconds(),
+        )
 
     def _present_wait_stats(self) -> None:
         """Feed the presenter the map's per-station and total wait statistics."""
