@@ -69,8 +69,34 @@ def click() -> np.ndarray:
     return tone + 0.25 * tick
 
 
+def victory() -> np.ndarray:
+    """Triumphant rising major arpeggio for winning a bet."""
+    notes = [(523, 0.13), (659, 0.13), (784, 0.13), (1047, 0.55)]  # C5 E5 G5 C6
+    return np.concatenate([
+        _partials([(freq, 1.0), (freq * 2, 0.3)], dur, 0.30 if dur > 0.3 else 0.14)
+        for freq, dur in notes
+    ])
+
+
+def lose() -> np.ndarray:
+    """Soft descending two-note for a losing bet."""
+    first = _partials([(392, 1.0), (784, 0.2)], 0.16, 0.12)
+    second = _partials([(311, 1.0), (622, 0.2)], 0.30, 0.16)
+    return np.concatenate([first, second])
+
+
+def quit_() -> np.ndarray:
+    """Gentle descending two-note for leaving a screen."""
+    first = _partials([(659, 1.0)], 0.13, 0.10)
+    second = _partials([(440, 1.0)], 0.22, 0.14)
+    return np.concatenate([first, second])
+
+
 if __name__ == "__main__":
     _write("ding.wav", ding(), 0.55)
     _write("soft_ding.wav", soft_ding(), 0.24)
     _write("error.wav", error(), 0.45)
     _write("click.wav", click(), 0.35)
+    _write("victory.wav", victory(), 0.6)
+    _write("lose.wav", lose(), 0.32)
+    _write("quit.wav", quit_(), 0.4)
