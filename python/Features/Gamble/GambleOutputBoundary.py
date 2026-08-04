@@ -11,12 +11,36 @@ class GambleOutputBoundary(ABC):
     question and feeds the answer back to the interactor."""
 
     @abstractmethod
+    def show_balance(self, balance: float) -> None:
+        """Show the player's current balance."""
+
+    @abstractmethod
+    def show_probability(self, description: str, probability: float) -> None:
+        """Show the probability the current bet's event <description> occurs."""
+
+    @abstractmethod
+    def clear_probability(self) -> None:
+        """Clear the probability box while no bet is being defined."""
+
+    @abstractmethod
+    def show_game(self) -> None:
+        """Switch the screen from betting to the automatic game view."""
+
+    @abstractmethod
     def ask_name(self) -> None:
         """Ask the player for their name."""
 
     @abstractmethod
     def ask_map(self, map_ids: list[int]) -> None:
         """Ask the player which of <map_ids> to play."""
+
+    @abstractmethod
+    def ask_speed(self) -> None:
+        """Ask whether to watch the game animate or get an instant result."""
+
+    @abstractmethod
+    def announce_outcome(self, won: bool) -> None:
+        """Sound the win or loss now the game's outcome is known."""
 
     @abstractmethod
     def ask_bet_amount(self, balance: float) -> None:

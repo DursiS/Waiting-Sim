@@ -1,3 +1,4 @@
+import Audio
 from Entities import GameState
 from Features.Gamble import GambleOutputBoundary, GambleViewModel
 
@@ -12,14 +13,42 @@ class GamblePresenter(GambleOutputBoundary):
         """Create a presenter feeding <view_model>."""
         self.view_model = view_model
 
+    def show_balance(self, balance: float) -> None:
+        """Show the player's current balance."""
+        self.view_model.set_balance(balance)
+
+    def show_probability(self, description: str, probability: float) -> None:
+        """Show the probability the current bet's event <description> occurs."""
+        self.view_model.set_probability(f"{probability * 100:.0f}%")
+
+    def clear_probability(self) -> None:
+        """Clear the probability box while no bet is being defined."""
+        self.view_model.set_probability("")
+
+    def show_game(self) -> None:
+        """Switch the screen from betting to the automatic game view."""
+        self.view_model.set_phase("game")
+
     def ask_name(self) -> None:
         """Ask the player for their name."""
+        self.view_model.set_phase("betting")
+        self.view_model.set_probability("")
         self.view_model.set_prompt("Enter your name:")
 
     def ask_map(self, map_ids: list[int]) -> None:
         """Ask the player which of <map_ids> to play."""
         ids = "/".join(str(m) for m in map_ids)
         self.view_model.set_prompt(f"Choose a map ({ids}):")
+
+    def ask_speed(self) -> None:
+        """Ask whether to watch the game animate or get an instant result."""
+        self.view_model.set_prompt(
+            "Watch the game (a)nimate or get an (i)nstant result? (a/i, default a):"
+        )
+
+    def announce_outcome(self, won: bool) -> None:
+        """Sound the win or loss now the game's outcome is known."""
+        Audio.play("victory" if won else "lose")
 
     def ask_bet_amount(self, balance: float) -> None:
         """Ask for a stake to lay, given the player's <balance>."""
