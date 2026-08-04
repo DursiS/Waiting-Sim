@@ -297,12 +297,12 @@ class GameViewModel:
 
             name = label_font.render(station.name, True, label_color)
             screen.blit(name, name.get_rect(midtop=(cx, cy + NODE_RADIUS + 7)))
-            tag = "END" if station.end else station.rule_name
-            sub = sub_font.render(tag, True, SUB_LABEL_COLOR)
-            screen.blit(
-                sub,
-                sub.get_rect(midtop=(cx, cy + NODE_RADIUS + 7 + name.get_height())),
-            )
+            tags = [station.rule_name] + (["END"] if station.end else [])
+            sub_y = cy + NODE_RADIUS + 7 + name.get_height()
+            for tag in tags:
+                sub = sub_font.render(tag, True, SUB_LABEL_COLOR)
+                screen.blit(sub, sub.get_rect(midtop=(cx, sub_y)))
+                sub_y += sub.get_height()
 
     def _make_train_surface(self) -> pygame.Surface:
         """Build the plain train rectangle drawn nose-right, ready to rotate."""
