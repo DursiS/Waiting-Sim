@@ -69,6 +69,7 @@ class GameViewModel:
     controls: tuple[tuple[str, str], ...]
     bet_result: str | None
     show_best: bool
+    show_controls: bool
     width: int
     height: int
     road_length: float
@@ -95,6 +96,7 @@ class GameViewModel:
         self.controls = CONTROLS
         self.bet_result = None
         self.show_best = True
+        self.show_controls = True
         self.road_length = ROAD_LENGTH
         self._running = False
         self._recompute_dimensions()
@@ -110,6 +112,10 @@ class GameViewModel:
     def set_show_best(self, show_best: bool) -> None:
         """Show or hide the best-completion line in the HUD."""
         self.show_best = show_best
+
+    def set_show_controls(self, show_controls: bool) -> None:
+        """Show or hide the bottom control bar."""
+        self.show_controls = show_controls
 
     def _recompute_dimensions(self) -> None:
         """Size the window to the station layout plus the HUD bars."""
@@ -360,8 +366,11 @@ class GameViewModel:
             best_width = best.get_width()
 
         if self.bet_result is not None:
-            result = hud_font.render(self.bet_result, True, BET_RESULT_COLOR)
-            screen.blit(result, result.get_rect(midtop=(self.width // 2, 16)))
+            y = 14
+            for line in self.bet_result.split("\n"):
+                rendered = hud_font.render(line, True, BET_RESULT_COLOR)
+                screen.blit(rendered, rendered.get_rect(midtop=(self.width // 2, y)))
+                y += rendered.get_height() + 6
 
         status_x = 24 + max(total.get_width(), best_width) + 40
         status_width = self.width - status_x - 24
@@ -452,7 +461,8 @@ class GameViewModel:
         self._draw_stations(screen, label_font, sub_font)
         self._draw_train(screen, sub_font)
         self._draw_hud(screen, hud_font, status_font)
-        self._draw_controls(screen, control_font)
+        if self.show_controls:
+            self._draw_controls(screen, control_font)
 
 
 class DefaultViewModel(GameViewModel):

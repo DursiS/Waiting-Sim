@@ -86,14 +86,22 @@ class GambleView:
             self._screen = pygame.display.set_mode((width, height))
 
     def _handle_key(self, event: pygame.event.Event) -> None:
-        """Restart, quit, or (in betting) type and submit the current answer."""
-        if event.key == pygame.K_ESCAPE:
-            self._quit()
-        elif self._view_model.phase == "game":
+        """Restart, quit, or (in betting) type and submit the current answer.
+
+        While a game is playing out no key does anything, so the player cannot
+        restart or quit to dodge a bet; the controls only work once the outcome
+        has been revealed in the payoff phase."""
+        if self._view_model.phase == "game":
+            if self._game_view_model.bet_result is None:
+                return
             if event.key == pygame.K_r:
                 self._restart()
-            elif event.key == pygame.K_q:
+            elif event.key in (pygame.K_q, pygame.K_ESCAPE):
                 self._quit()
+            return
+
+        if event.key == pygame.K_ESCAPE:
+            self._quit()
         elif self._view_model.prompt:
             if event.key == pygame.K_RETURN:
                 self._controller.handle_answer(self._buffer)

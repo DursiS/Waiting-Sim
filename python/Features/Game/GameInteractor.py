@@ -237,6 +237,7 @@ class GameInteractor(GameInputBoundry):
         player.move(self._instantiate_station(self._dao.get_record(destination.id)))
         self._presenter.show_player_station(player.station)
         self._presenter.show_total_wait(player.time_waited.total_seconds())
+        self._presenter.chime_arrival()
         self._gamble_steps += 1
         return player.station.end
 

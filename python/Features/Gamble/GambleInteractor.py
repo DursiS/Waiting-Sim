@@ -8,7 +8,7 @@ from Features.Gamble import GambleInputBoundary, GambleOutputBoundary
 
 HOUSE_DEFLATOR = 0.95
 STARTING_BALANCE = 100.0
-GAME_CONTROLS = (("R", "Restart"), ("Q", "Quit"))
+CONTROLS_HINT = "R  Restart          Q  Quit"
 GAMBLE_STEP_DELAY = 0.6
 
 
@@ -37,8 +37,8 @@ class GambleInteractor(GambleInputBoundary):
         """Create an interactor asking its questions through <presenter>."""
         self._log = BetLog()
         self._game_view_model = GameViewModel()
-        self._game_view_model.set_controls(GAME_CONTROLS)
         self._game_view_model.set_show_best(False)
+        self._game_view_model.set_show_controls(False)
         self._game = GameInteractor(
             dao=WorldDataAccess(), presenter=GamePresenter(self._game_view_model)
         )
@@ -248,16 +248,19 @@ class GambleInteractor(GambleInputBoundary):
         return self._game.gamble_result()
 
     def _reveal_outcome(self, game: GameState, payout: float) -> None:
-        """Reveal the bet result on the game HUD once the outcome is known.
+        """Reveal the bet result on the game HUD once the outcome is known,
+        clearing the turn HUD first and offering the controls on a second line.
 
         Stakes are not yet deducted when bets are placed, so the payout is the
         net gain and the player won when it is positive."""
+        self._game_view_model.clear_messages()
         self._game_view_model.set_total_wait(game.wait_time)
         won = payout > 0
         outcome = "WON" if won else "LOST"
         self._game_view_model.set_bet_result(
             f"Staked {self._staked:.2f}  |  {game.end_steps} steps, "
             f"waited {game.wait_time:.1f}s  |  Payout {payout:.2f} -- {outcome}"
+            f"\n{CONTROLS_HINT}"
         )
         self._presenter.show_balance(self._player.balance)
         self._presenter.announce_outcome(won)
