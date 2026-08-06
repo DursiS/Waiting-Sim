@@ -1,4 +1,4 @@
-# Pre-importing to use Features.Game as a facade
+# Pre-importing to use Features.WaitGame as a facade
 from .GameInputBoundry import GameInputBoundry
 from .GameOutputBoundry import GameOutputBoundry
 from .GameViewModel import GameViewModel, DefaultViewModel

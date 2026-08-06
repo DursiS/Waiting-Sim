@@ -1,11 +1,13 @@
 import random
 from datetime import timedelta
 
-from Entities import GameState, Station, World, Player, Line
+from Entities import Bet, BetLog, GameState, Station, World, Player, Line
+from Entities.TurnResult import TurnResult
 from Features.Game import GameInputBoundry, GameOutputBoundry
 from Data import WorldDataAccessInterface
 
-
+HOUSE_DEFLATOR = 0.95
+MAX_PATHS = 10**5
 Z_95 = 1.645
 LENGTH_TRAVEL_FACTOR = 0.01
 
@@ -16,8 +18,8 @@ class GameInteractor(GameInputBoundry):
     _world: World
     _dao: WorldDataAccessInterface
     _presenter: GameOutputBoundry
-    _last_game: tuple[str, int, bool] | None
-    _finished: bool
+    _last_game = None | tuple
+    _log: BetLog
 
     def __init__(
         self, dao: WorldDataAccessInterface, presenter: GameOutputBoundry
@@ -27,7 +29,185 @@ class GameInteractor(GameInputBoundry):
         self._presenter = presenter
         self._world = self._new_world()
         self._last_game = None
-        self._finished = False
+
+    def execute_game(
+        self,
+        player: Player | None,
+        name: str,
+        map_id: int,
+        rand_arrival: bool,
+        gamble: bool,
+    ) -> GameState:
+        """Set up and run a Game."""
+        self._load_map(map_id)
+        if player is None:
+            player = Player(
+                name=name,
+                starting_station=self._instantiate_station(
+                    self._dao.get_record(self._spawn_station_id())
+                ),
+            )
+
+        turn_results = []
+        while not player.station.end:
+            turn_results.append(self._game_turn(player, rand_arrival))
+            self._presenter.present_game_turn(turn_results[-1])
+
+        _last_game = player, map_id, rand_arrival
+
+        game = GameState(
+            phase_id=-1,
+            turn_results=turn_results,  # end_steps = len(turn_results) btw
+        )
+        if gamble:
+            self._payout(game)
+        return game
+
+    def execute_restart(self) -> None:
+        """Replay the current game's map, name and random-arrival setting."""
+        if self._last_game is None:
+            return
+        player, map_id, rand_arrival, gamble = self._last_game
+        self.execute_new_game(player, map_id, rand_arrival, False)
+
+    def _game_turn(self, player: Player, rand_arrival: bool) -> None:
+        """Run one turn of the game, feeding the presenter as it goes."""
+
+        wait_times = self._neighbour_wait_times(player, rand_arrival)
+        t_waited, destination = self._fastest(wait_times)
+        t_travel = self._time_spent_traveling(player, destination)
+
+        _from = player.station
+        player.move(self._instantiate_station(self._dao.get_record(destination.id)))
+        _to = player.station
+        self._save_player(player, rand_arrival)
+
+        return TurnResult(_to, _from, t_travel, t_waited)
+
+    def _paths(self) -> list[int]:
+        """Return a list of all possible paths to the end of
+        the world currently loaded in, representing stations as their ids."""
+
+        # vectorize
+        raise NotImplementedError
+
+    def _conditioned_paths(
+        self, total_paths: list[int], curr_path: list[int]
+    ) -> list[int]:
+        """Return a list of all possible paths left given our current
+        path so far."""
+
+        # vectorize
+        raise NotImplementedError
+
+    def _event_probability(self, curr_path: list[int]) -> float:
+        """Return the probability the bet's event occurs. Placeholder p = 1/2
+        until wired to the map's wait distributions."""
+        total_paths = self._paths()
+        valid_paths = self._conditioned_paths(total_paths, curr_path)
+        return len(valid_paths) / len(total_paths)
+
+    def _payout(self, game: GameState) -> float:
+        """Handle the accounting of who needs to be paid
+        and how much given the outcome of the game."""
+        n = game.phase_id
+        self._log.complete_phase(n)
+        payout = 0.0
+        for bet in self._log.get_bets(n):
+            payout += bet.payout(game)
+        return payout
+
+    def _create_bet(self, player: Player, amount: float, end_steps: int) -> Bet | None:
+        """Build a bet on <end_steps>, or None if the stake or count is
+        invalid."""
+        if amount <= 0 or amount > player.balance:
+            return None
+        if end_steps <= 0:
+            return None
+        return Bet(self._house_payoff_factor(end_steps), amount, None, end_steps)
+
+    def _house_payoff_factor(self, end_steps: int) -> float:
+        """Return the profit multiple paid on a winning bet -- the fair odds
+        shaved by the house edge -- so a stake returns stake * factor as profit
+        on a win."""
+        p = 1 / 2
+        fair_value = 1 / p
+        house_value = fair_value * HOUSE_DEFLATOR
+        return house_value - 1
+
+    def _fastest(
+        self, wait_times: list[tuple[Station, float]]
+    ) -> tuple[timedelta, Station]:
+        """Return the shortest ride as a (wait, destination station) pair."""
+        destination, seconds = min(wait_times, key=lambda pair: pair[1])
+        return timedelta(seconds=seconds), destination
+
+    def _time_spent_traveling(self, player: Player, destination: Station) -> timedelta:
+        """Return the time in seconds spent travelling from the player's
+        current station to their destination."""
+        roads_from = self._world.roads_from(player.station)
+        for road in roads_from:
+            if road.to_id() == destination.id:
+                s = road.length * LENGTH_TRAVEL_FACTOR
+                return timedelta(seconds=s)
+        return timedelta(seconds=1)
+
+    def _best_highscore(self, rand_arrival: bool) -> dict | None:
+        """Return the lowest-time completion of the current map for the given
+        random-arrival setting, or None."""
+        highscores = self._dao.get_highscores(self._dao.current_map_id(), rand_arrival)
+        return min(highscores, key=lambda entry: entry["time"]) if highscores else None
+
+    def _save_player(self, player: Player, rand_arrival: bool) -> None:
+        """Persist <player> with their map and random-arrival choice."""
+        data = player.convert_to_data()
+        data["map_id"] = self._dao.current_map_id()
+        data["rand_arrival"] = rand_arrival
+        self._dao.save_player(data)
+
+    def _station_expectations(self) -> list[tuple[str, float, float]]:
+        """Return the name, expected wait and std dev of every station."""
+        return [
+            (
+                record["name"],
+                self._dao.get_expectation(record["id"]),
+                self._dao.get_std_dev(record["id"]),
+            )
+            for record in self._dao.get_records()
+        ]
+
+    def _get_map_expectation(self) -> tuple[float, float]:
+        """Return the map's total expected wait and the std dev of that total.
+
+        Stations are treated as independent, so the variance of the total is
+        the sum of variances and its std dev is the root of that sum."""
+        total_expectation = 0.0
+        total_variance = 0.0
+        for record in self._dao.get_records():
+            total_expectation += self._dao.get_expectation(record["id"])
+            total_variance += self._dao.get_std_dev(record["id"]) ** 2
+        return total_expectation, total_variance**0.5
+
+    def _station_risks(self) -> list[tuple[str, float]]:
+        """Return the name and 95th-percentile risk wait of every station."""
+
+        def f(station_id):
+            """Return the risk of one station"""
+            return self._dao.get_expectation(station_id) + Z_95 * self._dao.get_std_dev(
+                station_id
+            )
+
+        return [(record["name"], f(record["id"])) for record in self._dao.get_records()]
+
+    def _map_risk(self) -> float:
+        """Return the map's 95th-percentile risk wait time for the total."""
+        total_expectation, total_std_dev = self._get_map_expectation()
+        return total_expectation + Z_95 * total_std_dev
+
+    def _load_map(self, map_id: int) -> None:
+        """Switch to map <map_id>, rebuild the world and show it."""
+        self._dao.load_map(map_id)
+        self._world = self._new_world()
 
     def _instantiate_station(self, record: dict) -> Station:
         """Build a Station from the wait rules entry <record>."""
@@ -42,317 +222,6 @@ class GameInteractor(GameInputBoundry):
         )
         station.set_id(record["id"])
         return station
-
-    def _fastest(
-        self, wait_times: list[tuple[Station, float]]
-    ) -> tuple[timedelta, Station]:
-        """Return the shortest ride as a (wait, destination station) pair."""
-        destination, seconds = min(wait_times, key=lambda pair: pair[1])
-        return timedelta(seconds=seconds), destination
-
-    def _named(
-        self, wait_times: list[tuple[Station, float]]
-    ) -> list[tuple[str, float]]:
-        """Label each neighbour-wait pair with its station name for display."""
-        return [(station.name, seconds) for station, seconds in wait_times]
-
-    def _time_spent_traveling(self, player: Player, destination: Station) -> timedelta:
-        """Return the time in seconds spent travelling from the player's
-        current station to their destination."""
-        roads_from = self._world.roads_from(player.station)
-        for road in roads_from:
-            if road.to_id() == destination.id:
-                s = road.length * LENGTH_TRAVEL_FACTOR
-                return timedelta(seconds=s)
-        return timedelta(seconds=1)
-
-    def _game_turn(self, player: Player, rand_arrival: bool) -> None:
-        """Run one turn of the game, feeding the presenter as it goes."""
-        self._presenter.clear_messages()
-        expected = self._neighbour_expected_times(player, rand_arrival)
-        self._presenter.say_expected_times(self._named(expected))
-
-        wait_times = self._neighbour_wait_times(player, rand_arrival)
-        t_waited, destination = self._fastest(wait_times)
-        t_travel = self._time_spent_traveling(player, destination)
-
-        self._presenter.say_waiting()
-        self._presenter.show_loading(True)
-        player.wait(t_waited)
-
-        self._presenter.show_loading(False)
-        self._presenter.say_sequenced_wait_times(self._named(wait_times))
-        self._presenter.say_time_waited(t_waited, destination.name)
-
-        self._presenter.say_travelling(t_travel, destination.name)
-        self._presenter.show_incoming_train(destination, t_travel.total_seconds())
-        self._presenter.show_loading(True)
-        player.wait(t_travel)
-        self._presenter.show_loading(False)
-
-        if t_waited.total_seconds() >= self._station_risk(destination.id):
-            self._presenter.say_percentile_wait()
-
-        idx = player.station.id
-        self._dao[idx]["times_visited"] += 1
-        self._dao[idx]["waited_at"] += t_waited
-
-        player.move(self._instantiate_station(self._dao.get_record(destination.id)))
-
-        self._presenter.show_player_station(player.station)
-        self._presenter.show_total_wait(player.time_waited.total_seconds())
-        self._presenter.show_best_highscore(self._best_highscore(rand_arrival))
-
-        if player.station.end:
-            self._win(player, rand_arrival)
-        else:
-            self._presenter.chime_arrival()
-            self._save_player(player, rand_arrival)
-            self._presenter.prompt_to_continue()
-
-    def _best_highscore(self, rand_arrival: bool) -> dict | None:
-        """Return the lowest-time completion of the current map for the given
-        random-arrival setting, or None."""
-        highscores = self._dao.get_highscores(self._dao.current_map_id(), rand_arrival)
-        return min(highscores, key=lambda entry: entry["time"]) if highscores else None
-
-    def _win(self, player: Player, rand_arrival: bool) -> None:
-        """End the game: record the highscore, clear the save and hand the HUD
-        over to the closing message."""
-        total_wait = player.time_waited.total_seconds()
-        self._dao.save_highscore(
-            self._dao.current_map_id(), rand_arrival, player.name, total_wait
-        )
-        self._dao.erase_player_data()
-        self._finished = True
-        self._presenter.clear_messages()
-        self._presenter.say_reached_end(total_wait)
-        self._presenter.show_game_over(True)
-
-    def _save_player(self, player: Player, rand_arrival: bool) -> None:
-        """Persist <player> with their map and random-arrival choice."""
-        data = player.convert_to_data()
-        data["map_id"] = self._dao.current_map_id()
-        data["rand_arrival"] = rand_arrival
-        self._dao.save_player(data)
-
-    def execute_new_game(
-        self,
-        name: str,
-        map_id: int,
-        rand_arrival: bool,
-    ) -> None:
-        """Set up a game on <map_id> and explain it, leaving the first turn to
-        a continue."""
-        self._last_game = (name, map_id, rand_arrival)
-        self._finished = False
-        self._presenter.show_game_over(False)
-        self._load_map(map_id)
-        self._present_wait_stats()
-        spawn = self._instantiate_station(
-            self._dao.get_record(self._spawn_station_id())
-        )
-        player = Player(name=name, starting_station=spawn)
-
-        self._save_player(player, rand_arrival)
-        self._presenter.show_player_station(spawn)
-        self._presenter.show_total_wait(player.time_waited.total_seconds())
-        self._presenter.show_best_highscore(self._best_highscore(rand_arrival))
-        self._presenter.clear_messages()
-        self._presenter.say_explanation()
-        self._presenter.prompt_to_continue()
-
-    def execute_new_gamble_game(self, name: str, map_id: int) -> GameState:
-        """Run a whole game automatically to the end on <map_id> as <name> and
-        return its outcome for the betting system.
-
-        There is no prompting, animation, real waiting or quit/restart/play
-        again: random arrival is off and play is fully automatic, so a bettor
-        cannot steer the game to game their bets. The returned state carries no
-        phase id yet -- the caller stamps it. Prompting for the name and map is
-        done up front through the gamble presenter, per Clean Architecture."""
-        self._load_map(map_id)
-        player = Player(
-            name=name,
-            starting_station=self._instantiate_station(
-                self._dao.get_record(self._spawn_station_id())
-            ),
-        )
-
-        end_steps = 0
-        while not player.station.end:
-            t_waited, destination = self._fastest(
-                self._neighbour_wait_times(player, False)
-            )
-            t_travel = self._time_spent_traveling(player, destination)
-            player.time_waited += t_waited + t_travel
-            player.move(self._instantiate_station(self._dao.get_record(destination.id)))
-            end_steps += 1
-
-        return GameState(
-            phase_id=-1,
-            end_steps=end_steps,
-            wait_time=player.time_waited.total_seconds(),
-        )
-
-    def setup_gamble_game(self, name: str, map_id: int) -> None:
-        """Set up an automatic game to be played turn by turn for a gamble,
-        presenting the starting map and player."""
-        self._load_map(map_id)
-        self._gamble_player = Player(
-            name=name,
-            starting_station=self._instantiate_station(
-                self._dao.get_record(self._spawn_station_id())
-            ),
-        )
-        self._gamble_steps = 0
-        self._presenter.clear_messages()
-        self._presenter.show_player_station(self._gamble_player.station)
-        self._presenter.show_total_wait(0.0)
-
-    def gamble_turn(self) -> bool:
-        """Play one animated turn of the gamble game -- waiting for the fastest
-        train then travelling it -- and return whether the end was reached.
-
-        This is the animated auto-play reused fluff-free: it waits and travels
-        in real time with the same presenter updates as a normal turn, but
-        keeps no save, highscore or continue prompt."""
-        player = self._gamble_player
-        t_waited, destination = self._fastest(self._neighbour_wait_times(player, False))
-        t_travel = self._time_spent_traveling(player, destination)
-
-        self._presenter.clear_messages()
-        self._presenter.say_waiting()
-        self._presenter.show_loading(True)
-        player.wait(t_waited)
-
-        self._presenter.show_loading(False)
-        self._presenter.say_time_waited(t_waited, destination.name)
-        self._presenter.say_travelling(t_travel, destination.name)
-        self._presenter.show_incoming_train(destination, t_travel.total_seconds())
-        self._presenter.show_loading(True)
-        player.wait(t_travel)
-        self._presenter.show_loading(False)
-
-        player.move(self._instantiate_station(self._dao.get_record(destination.id)))
-        self._presenter.show_player_station(player.station)
-        self._presenter.show_total_wait(player.time_waited.total_seconds())
-        self._presenter.chime_arrival()
-        self._gamble_steps += 1
-        return player.station.end
-
-    def gamble_result(self) -> GameState:
-        """Return the finished gamble game's outcome."""
-        return GameState(
-            phase_id=-1,
-            end_steps=self._gamble_steps,
-            wait_time=self._gamble_player.time_waited.total_seconds(),
-        )
-
-    def _present_wait_stats(self) -> None:
-        """Feed the presenter the map's per-station and total wait statistics."""
-        self._presenter.clear_wait_stats()
-        self._presenter.show_station_expectations(self._station_expectations())
-        total_expectation, total_std_dev = self._map_expectation()
-        self._presenter.show_map_expectation(total_expectation, total_std_dev)
-        self._presenter.show_station_risks(self._station_risks())
-        self._presenter.show_map_risk(self._map_risk())
-
-    def _station_expectations(self) -> list[tuple[str, float, float]]:
-        """Return the name, expected wait and std dev of every station."""
-        return [
-            (
-                record["name"],
-                self._dao.get_expectation(record["id"]),
-                self._dao.get_std_dev(record["id"]),
-            )
-            for record in self._dao.get_records()
-        ]
-
-    def _map_expectation(self) -> tuple[float, float]:
-        """Return the map's total expected wait and the std dev of that total.
-
-        Stations are treated as independent, so the variance of the total is
-        the sum of variances and its std dev is the root of that sum."""
-        total_expectation = 0.0
-        total_variance = 0.0
-        for record in self._dao.get_records():
-            total_expectation += self._dao.get_expectation(record["id"])
-            total_variance += self._dao.get_std_dev(record["id"]) ** 2
-        return total_expectation, total_variance**0.5
-
-    def _station_risk(self, station_id: int) -> float:
-        """Return the 95th-percentile risk wait for the station with id <station_id>."""
-        return self._dao.get_expectation(station_id) + Z_95 * self._dao.get_std_dev(
-            station_id
-        )
-
-    def _station_risks(self) -> list[tuple[str, float]]:
-        """Return the name and 95th-percentile risk wait of every station."""
-        return [
-            (record["name"], self._station_risk(record["id"]))
-            for record in self._dao.get_records()
-        ]
-
-    def _map_risk(self) -> float:
-        """Return the map's 95th-percentile risk wait time for the total."""
-        total_expectation, total_std_dev = self._map_expectation()
-        return total_expectation + Z_95 * total_std_dev
-
-    def execute_continue_game(self) -> None:
-        """Continue a pre-existing game, or report there is nothing to continue."""
-        if self._finished:
-            self._presenter.clear_messages()
-            self._presenter.say_already_finished()
-            self._presenter.show_game_over(True)
-            return
-
-        if not self._dao.exists_player_data():
-            self._presenter.clear_messages()
-            self._presenter.say_no_save()
-            return
-
-        data = self._dao.get_player_data()
-        map_id = data.get("map_id", self._dao.current_map_id())
-        rand_arrival = data.get("rand_arrival", False)
-        self._last_game = (data["name"], map_id, rand_arrival)
-        self._load_map(map_id)
-        player_station = self._instantiate_station(
-            self._dao.get_record(data["station"])
-        )
-        player = Player.build_player_from_data(data, player_station)
-        self._game_turn(player, rand_arrival)
-
-    def execute_restart(self) -> None:
-        """Replay the current game's map, name and random-arrival setting."""
-        if self._last_game is None:
-            return
-        name, map_id, rand_arrival = self._last_game
-        self.execute_new_game(name, map_id, rand_arrival)
-
-    def execute_quit_game(self) -> None:
-        """Quit the game"""
-        self._dao.erase_player_data()
-        self._presenter.say_quitting_game()
-
-    def get_world_stations(self) -> list[Station]:
-        """Return every station in the world."""
-        return self._world.get_stations()
-
-    def get_world_roads(self) -> list[tuple[tuple[int, int], tuple[int, int]]]:
-        """Return each road as an ordered (from, to) pair of grid coordinates."""
-        return self._view_roads()
-
-    def get_map_ids(self) -> list[int]:
-        """Return the ids of every selectable map."""
-        return self._dao.map_ids()
-
-    def _load_map(self, map_id: int) -> None:
-        """Switch to map <map_id>, rebuild the world and show it."""
-        self._dao.load_map(map_id)
-        self._world = self._new_world()
-        self._presenter.show_stations(self._world.get_stations())
-        self._presenter.show_roads(self._view_roads())
 
     def _view_roads(self) -> list[tuple[tuple[int, int], tuple[int, int]]]:
         """Return each road as an ordered (from, to) pair of grid coordinates
@@ -379,7 +248,7 @@ class GameInteractor(GameInputBoundry):
         raise ValueError("map has no end station")
 
     def _distances_from(self, start_id: int) -> dict[int, int]:
-        """Return the step distance from <start_id> to every reachable station."""
+        """Return the step distance to every reachable station."""
         distances = {start_id: 0}
         queue = [start_id]
         while queue:
@@ -391,7 +260,7 @@ class GameInteractor(GameInputBoundry):
         return distances
 
     def _adjacent_ids(self, station_id: int) -> list[int]:
-        """Return the ids of the stations adjacent to <station_id> on the grid."""
+        """Return the ids of the stations adjacent on the grid."""
         station = self._world.station_at(
             tuple(self._dao.get_record(station_id)["coordinates"])
         )
@@ -432,7 +301,7 @@ class GameInteractor(GameInputBoundry):
     def _neighbour_wait_times(
         self, player: Player, rand_arrival: bool
     ) -> list[tuple[Station, float]]:
-        """Sample each adjacent station's ride time, paired with that station."""
+        """Sample each adjacent station's ride time with that station."""
         result = []
         for neighbour in self._world.adjacent_stations(player.station):
             seconds = self._dao.sample_rule(neighbour.id)
