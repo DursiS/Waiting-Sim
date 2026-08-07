@@ -1,7 +1,7 @@
 import random
 from datetime import timedelta
 
-from Entities import Bet, BetLog, GameState, Station, World, Player, Line
+from Entities import Bet, BetLog, GameInputData, GameOutputData, Station, World, Player, Line
 from Entities.TurnResult import TurnResult
 from Features.Game import GameInputBoundry, GameOutputBoundry
 from Data import WorldDataAccessInterface
@@ -18,8 +18,9 @@ class GameInteractor(GameInputBoundry):
     _world: World
     _dao: WorldDataAccessInterface
     _presenter: GameOutputBoundry
-    _last_game = None | tuple
+    _last_game: tuple | None
     _log: BetLog
+    _admin: Player
 
     def __init__(
         self, dao: WorldDataAccessInterface, presenter: GameOutputBoundry
@@ -29,16 +30,52 @@ class GameInteractor(GameInputBoundry):
         self._presenter = presenter
         self._world = self._new_world()
         self._last_game = None
+        self._log = BetLog()
+        self._admin = Player(None)
 
-    def execute_game(
+    def execute(
+        self,
+        player: Player | None,
+        inputData: GameInputData,
+    ) -> None:
+        """Run the game described by <inputData> and, when gambling, settle its
+        bets against the outcome, then present the finished state."""
+        game = self._game(
+            player,
+            inputData.name,
+            inputData.map_id,
+            inputData.rand_arrival,
+            inputData.gamble,
+            inputData.animate,
+        )
+        player = self._last_game[0]
+
+        if inputData.gamble:
+            phase_id = self._log.new_betting_phase()
+            self._load_bets(phase_id, inputData.raw_bets)
+            game.phase_id = phase_id
+            self._payoff(player, self._admin, game)
+
+        self._presenter.present_game_state(game)
+
+    def _load_bets(self, phase_id: int, raw_bets: list) -> None:
+        """Instantiate bets from the raw data and place them under <phase_id>.
+
+        <raw_bets> is the View's collected data: a list of
+        {"end_steps": int, "amount": float} entries."""
+        raise NotImplementedError
+
+    def _game(
         self,
         player: Player | None,
         name: str,
         map_id: int,
         rand_arrival: bool,
         gamble: bool,
-    ) -> GameState:
-        """Set up and run a Game."""
+        animate: bool = True,
+    ) -> GameOutputData:
+        """Set up and run a Game to the end, presenting each turn and the
+        finished result."""
         self._load_map(map_id)
         if player is None:
             player = Player(
@@ -47,28 +84,59 @@ class GameInteractor(GameInputBoundry):
                     self._dao.get_record(self._spawn_station_id())
                 ),
             )
+        self._last_game = (player, name, map_id, rand_arrival, gamble)
+        self._presenter.present_game_setup(
+            self._world.get_stations(),
+            self._view_roads(),
+            player.station,
+            gamble,
+            animate,
+        )
 
         turn_results = []
         while not player.station.end:
             turn_results.append(self._game_turn(player, rand_arrival))
             self._presenter.present_game_turn(turn_results[-1])
 
-        _last_game = player, map_id, rand_arrival
-
-        game = GameState(
+        return GameOutputData(
             phase_id=-1,
-            turn_results=turn_results,  # end_steps = len(turn_results) btw
+            turn_results=turn_results,
+            gamble=gamble,
+            rand_arrival=rand_arrival,
+            payout=0.0,
         )
-        if gamble:
-            self._payout(game)
-        return game
 
-    def execute_restart(self) -> None:
+    def execute_restart(self) -> GameOutputData | None:
         """Replay the current game's map, name and random-arrival setting."""
         if self._last_game is None:
-            return
-        player, map_id, rand_arrival, gamble = self._last_game
-        self.execute_new_game(player, map_id, rand_arrival, False)
+            return None
+        _, name, map_id, rand_arrival, gamble = self._last_game
+        game = self._game(None, name, map_id, rand_arrival, gamble)
+        self._presenter.present_game_state(game)
+        return game
+
+    def get_map_ids(self) -> list[int]:
+        """Return the ids of every selectable map."""
+        return self._dao.map_ids()
+
+    def get_balance(self) -> float:
+        """Return the balance the next game's player bets with."""
+        if self._last_game is not None:
+            return self._last_game[0].balance
+        return Player(None).balance
+
+    def _payoff(self, player: Player, admin: Player, game: GameOutputData) -> float:
+        """Handle the accounting of who needs to be paid
+        and how much given the outcome of the game."""
+        n = game.phase_id
+        self._log.complete_phase(n)
+        payoff = 0.0
+        for bet in self._log.get_bets(n):
+            payoff += bet.payout(game)
+        player.balance += payoff
+        admin.balance -= payoff
+        game.payout = payoff
+        return payoff
 
     def _game_turn(self, player: Player, rand_arrival: bool) -> None:
         """Run one turn of the game, feeding the presenter as it goes."""
@@ -107,16 +175,6 @@ class GameInteractor(GameInputBoundry):
         valid_paths = self._conditioned_paths(total_paths, curr_path)
         return len(valid_paths) / len(total_paths)
 
-    def _payout(self, game: GameState) -> float:
-        """Handle the accounting of who needs to be paid
-        and how much given the outcome of the game."""
-        n = game.phase_id
-        self._log.complete_phase(n)
-        payout = 0.0
-        for bet in self._log.get_bets(n):
-            payout += bet.payout(game)
-        return payout
-
     def _create_bet(self, player: Player, amount: float, end_steps: int) -> Bet | None:
         """Build a bet on <end_steps>, or None if the stake or count is
         invalid."""
@@ -124,7 +182,7 @@ class GameInteractor(GameInputBoundry):
             return None
         if end_steps <= 0:
             return None
-        return Bet(self._house_payoff_factor(end_steps), amount, None, end_steps)
+        return Bet(self._house_payoff_factor(end_steps), amount, end_steps)
 
     def _house_payoff_factor(self, end_steps: int) -> float:
         """Return the profit multiple paid on a winning bet -- the fair odds
