@@ -2,7 +2,7 @@ import random
 
 import numpy as np
 
-from Entities import GameState
+from Entities import GameOutputData
 
 
 class Bet:
@@ -19,7 +19,6 @@ class Bet:
 
     _payoff_factor: float
     _amount: float
-    _interval: tuple[float, float] | None
     _end_steps: int | None
     _id: int
     _win: bool | None
@@ -29,12 +28,10 @@ class Bet:
         self,
         payoff_factor: float,
         amount: float,
-        interval: tuple[float, float] | None,
         end_steps: int | None,
     ) -> None:
         self._payoff_factor = payoff_factor
         self._amount = amount
-        self._interval = interval
         self._end_steps = end_steps
         self._id = random.randint(0, 10**5)
         self._win = None
@@ -44,14 +41,10 @@ class Bet:
         """Return the id of this bet."""
         return self._id
 
-    def payout(self, game: GameState) -> float:
+    def payout(self, game: GameOutputData) -> float:
         """Settle this bet against <game>: record whether it won and return the
         winnings (stake times payoff factor) on a win, or 0.0 on a loss."""
-        if self._interval is not None:
-            x, y = self._interval
-            won = x < game.wait_time <= y
-        else:
-            won = game.end_steps == self._end_steps
+        won = len(game.get_results()) == self._end_steps
         self._win = won
         self._finished = True
         return self._amount * self._payoff_factor if won else 0.0
