@@ -1,10 +1,10 @@
-from Entities import Bet, GameState
+from Entities import Bet, GameOutputData
 
 
 class BetLog:
     """A history of all bets made."""
 
-    _history: dict[int, tuple[list[Bet] | tuple[Bet, ...], GameState | None]]
+    _history: dict[int, tuple[list[Bet] | tuple[Bet, ...], GameOutputData | None]]
 
     def __init__(self) -> None:
         self._history = {}
