@@ -24,7 +24,7 @@ class WorldDataAccessInterface(ABC):
         """Polymorphic function to set distributions at any station."""
 
     @abstractmethod
-    def get_expectation(self, station_id: str) -> float:
+    def get_expectation(self, station_id: int) -> float:
         """Return the expectation of the distribution of that name and inputs."""
 
     @abstractmethod

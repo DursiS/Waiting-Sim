@@ -1,11 +1,33 @@
 from abc import ABC, abstractmethod
 from datetime import timedelta
 
-from Entities import Station
+from Entities import GameOutputData, Station
+from Entities.TurnResult import TurnResult
 
 
 class GameOutputBoundry(ABC):
     """An interface to decouple Adapter and Business logic."""
+
+    @abstractmethod
+    def present_game_setup(
+        self,
+        stations: list[Station],
+        roads: list[tuple[tuple[int, int], tuple[int, int]]],
+        spawn: Station,
+        gamble: bool,
+        animate: bool,
+    ) -> None:
+        """Show the map and reset the HUD for a fresh game, remembering whether
+        to animate turns."""
+
+    @abstractmethod
+    def present_game_turn(self, turn: TurnResult) -> None:
+        """Animate one played turn: wait for the ride, then travel to the next
+        station."""
+
+    @abstractmethod
+    def present_game_state(self, game: GameOutputData) -> None:
+        """Present the finished game: the total wait and closing message."""
 
     @abstractmethod
     def clear_messages(self) -> None:

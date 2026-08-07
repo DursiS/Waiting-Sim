@@ -48,6 +48,24 @@ STATUS_COLOR = (200, 212, 228)
 KEY_COLOR = (250, 210, 90)
 CONTROL_LABEL_COLOR = (200, 210, 224)
 
+BETTING_WIDTH = 760
+BETTING_HEIGHT = 520
+BETTING_MARGIN = 40
+BETTING_LINE_HEIGHT = 26
+PROB_BOX = pygame.Rect(BETTING_WIDTH - 260, 70, 220, 92)
+
+BETTING_TITLE_COLOR = (240, 210, 110)
+BALANCE_COLOR = (150, 235, 170)
+PROMPT_COLOR = (150, 215, 235)
+INPUT_BG_COLOR = (10, 12, 16)
+INPUT_BORDER_COLOR = (70, 120, 170)
+INPUT_COLOR = (255, 255, 255)
+MESSAGE_COLOR = (206, 212, 224)
+BOX_BG_COLOR = (28, 31, 40)
+BOX_BORDER_COLOR = (58, 63, 78)
+BOX_LABEL_COLOR = (150, 162, 178)
+BOX_VALUE_COLOR = (250, 220, 130)
+
 
 class GameViewModel:
     """A Rail-Route style map of the world: stations are nodes joined by dual
@@ -70,8 +88,14 @@ class GameViewModel:
     bet_result: str | None
     show_best: bool
     show_controls: bool
+    phase: str
+    balance: float
+    probability: str
+    prompt: str
     width: int
     height: int
+    betting_width: int
+    betting_height: int
     road_length: float
     _running: bool
 
@@ -97,6 +121,12 @@ class GameViewModel:
         self.bet_result = None
         self.show_best = True
         self.show_controls = True
+        self.phase = "game"
+        self.balance = 0.0
+        self.probability = ""
+        self.prompt = ""
+        self.betting_width = BETTING_WIDTH
+        self.betting_height = BETTING_HEIGHT
         self.road_length = ROAD_LENGTH
         self._running = False
         self._recompute_dimensions()
@@ -116,6 +146,23 @@ class GameViewModel:
     def set_show_controls(self, show_controls: bool) -> None:
         """Show or hide the bottom control bar."""
         self.show_controls = show_controls
+
+    def set_phase(self, phase: str) -> None:
+        """Set the screen phase: 'betting' shows the bet screen, 'game' shows
+        the rail map that plays out."""
+        self.phase = phase
+
+    def set_balance(self, balance: float) -> None:
+        """Set the player's balance shown in the top-left of the bet screen."""
+        self.balance = balance
+
+    def set_probability(self, probability: str) -> None:
+        """Set the text shown in the odds box, or '' to clear it."""
+        self.probability = probability
+
+    def set_prompt(self, prompt: str) -> None:
+        """Set the betting question the View displays and reads an answer for."""
+        self.prompt = prompt
 
     def _recompute_dimensions(self) -> None:
         """Size the window to the station layout plus the HUD bars."""
@@ -463,6 +510,71 @@ class GameViewModel:
         self._draw_hud(screen, hud_font, status_font)
         if self.show_controls:
             self._draw_controls(screen, control_font)
+
+    def draw_betting(self, screen: pygame.Surface, typed: str) -> None:
+        """Draw the betting screen: the balance, the odds box, the running
+        message block, the current question and the <typed> answer."""
+        screen.fill(BG_COLOR)
+        title_font = pygame.font.SysFont("consolas", 30, bold=True)
+        balance_font = pygame.font.SysFont(None, 30)
+        prompt_font = pygame.font.SysFont(None, 28)
+        message_font = pygame.font.SysFont(None, 24)
+        box_font = pygame.font.SysFont(None, 22)
+        value_font = pygame.font.SysFont(None, 34, bold=True)
+
+        balance = balance_font.render(
+            f"Balance: {self.balance:.2f}", True, BALANCE_COLOR
+        )
+        screen.blit(balance, (BETTING_MARGIN, 24))
+        title = title_font.render("Gamble", True, BETTING_TITLE_COLOR)
+        screen.blit(title, title.get_rect(midtop=(self.betting_width // 2, 22)))
+
+        self._draw_probability_box(screen, box_font, value_font)
+
+        y = 120
+        for message in self.messages[-9:]:
+            rendered = message_font.render(message, True, MESSAGE_COLOR)
+            screen.blit(rendered, (BETTING_MARGIN, y))
+            y += BETTING_LINE_HEIGHT
+
+        if self.prompt:
+            self._draw_bet_prompt(screen, prompt_font, typed)
+
+    def _draw_probability_box(
+        self,
+        screen: pygame.Surface,
+        label_font: pygame.font.Font,
+        value_font: pygame.font.Font,
+    ) -> None:
+        """Draw the odds box communicating the current bet's win probability."""
+        pygame.draw.rect(screen, BOX_BG_COLOR, PROB_BOX, border_radius=8)
+        pygame.draw.rect(screen, BOX_BORDER_COLOR, PROB_BOX, width=1, border_radius=8)
+        label = label_font.render("Chance to win", True, BOX_LABEL_COLOR)
+        screen.blit(label, label.get_rect(midtop=(PROB_BOX.centerx, PROB_BOX.top + 10)))
+        value = value_font.render(self.probability or "--", True, BOX_VALUE_COLOR)
+        screen.blit(
+            value, value.get_rect(center=(PROB_BOX.centerx, PROB_BOX.centery + 12))
+        )
+
+    def _draw_bet_prompt(
+        self, screen: pygame.Surface, font: pygame.font.Font, typed: str
+    ) -> None:
+        """Draw the current question and an input box holding the typed answer."""
+        question = font.render(self.prompt, True, PROMPT_COLOR)
+        screen.blit(
+            question,
+            (BETTING_MARGIN, self.betting_height - BETTING_MARGIN - BETTING_LINE_HEIGHT * 2 - 8),
+        )
+        box = pygame.Rect(
+            BETTING_MARGIN,
+            self.betting_height - BETTING_MARGIN - BETTING_LINE_HEIGHT - 6,
+            self.betting_width - BETTING_MARGIN * 2,
+            BETTING_LINE_HEIGHT + 8,
+        )
+        pygame.draw.rect(screen, INPUT_BG_COLOR, box, border_radius=4)
+        pygame.draw.rect(screen, INPUT_BORDER_COLOR, box, width=1, border_radius=4)
+        answer = font.render(f"{typed}_", True, INPUT_COLOR)
+        screen.blit(answer, answer.get_rect(midleft=(box.left + 10, box.centery)))
 
 
 class DefaultViewModel(GameViewModel):

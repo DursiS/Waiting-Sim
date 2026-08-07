@@ -1,7 +1,9 @@
+import time
 from datetime import timedelta
 
 import Audio
-from Entities import Station
+from Entities import GameOutputData, Station
+from Entities.TurnResult import TurnResult
 from Features.Game import GameOutputBoundry, GameViewModel
 
 REPLAY_PROMPT = "Press R to restart this map, P to play a different map, or Q to quit."
@@ -9,9 +11,90 @@ REPLAY_PROMPT = "Press R to restart this map, P to play a different map, or Q to
 
 class GamePresenter(GameOutputBoundry):
     view_model: GameViewModel
+    _animate: bool
 
     def __init__(self, view_model: GameViewModel) -> None:
         self.view_model = view_model
+        self._animate = True
+
+    def present_game_setup(
+        self,
+        stations: list[Station],
+        roads: list[tuple[tuple[int, int], tuple[int, int]]],
+        spawn: Station,
+        gamble: bool,
+        animate: bool,
+    ) -> None:
+        """Show the map and reset the HUD for a fresh game, remembering whether
+        to animate turns."""
+        self._animate = animate
+        self.view_model.set_phase("game")
+        self.show_stations(stations)
+        self.show_roads(roads)
+        self.view_model.set_show_best(not gamble)
+        self.view_model.set_show_controls(False)
+        self.view_model.set_bet_result(None)
+        self.view_model.set_game_over(False)
+        self.clear_messages()
+        self.show_total_wait(0.0)
+        self.show_player_station(spawn)
+
+    def present_game_turn(self, turn: TurnResult) -> None:
+        """Animate one played turn: wait for the ride (dots, no train) for the
+        real wait time, then depart and travel to the next station over the real
+        travel time, updating the HUD and chiming on arrival. When not
+        animating, the turn is presented instantly with no waiting."""
+        self.show_player_station(turn._from)
+        self.clear_messages()
+        self.say_waiting()
+        self.show_loading(True)
+        if self._animate:
+            time.sleep(turn.t_waited.total_seconds())
+
+        self.show_loading(False)
+        self.say_time_waited(turn.t_waited, turn._to.name)
+        self.say_travelling(turn.t_travel, turn._to.name)
+        self.show_incoming_train(turn._to, turn.t_travel.total_seconds())
+        self.show_loading(True)
+        if self._animate:
+            time.sleep(turn.t_travel.total_seconds())
+
+        self.show_loading(False)
+        self.show_player_station(turn._to)
+        self.show_total_wait(
+            self.view_model.total_wait
+            + turn.t_waited.total_seconds()
+            + turn.t_travel.total_seconds()
+        )
+        self.chime_arrival()
+
+    def present_game_state(self, game: GameOutputData) -> None:
+        """Present the finished game: the total wait, then the closing message.
+
+        The kind of close is inferred from the GameOutputData: a plain play shows
+        the reached-end message, a gamble shows its bet result read off the
+        settled payout carried on the output object."""
+        total_wait = sum(
+            turn.t_waited.total_seconds() + turn.t_travel.total_seconds()
+            for turn in game._turn_results
+        )
+        self.show_total_wait(total_wait)
+        self.clear_messages()
+        if game.gamble:
+            self._present_bet_result(game)
+        else:
+            self.say_reached_end(total_wait)
+        self.show_game_over(True)
+
+    def _present_bet_result(self, game: GameOutputData) -> None:
+        """Show the gamble's outcome in the HUD, read off the settled payout."""
+        if game.payout > 0:
+            self.view_model.set_bet_result(f"You won {game.payout:.2f}!")
+            Audio.play("victory")
+        else:
+            self.view_model.set_bet_result("No winning bets.")
+            Audio.play("lose")
+        self.view_model.add_message(REPLAY_PROMPT)
 
     def clear_messages(self) -> None:
         """Clear the running turn messages before a new turn."""
@@ -27,7 +110,9 @@ class GamePresenter(GameOutputBoundry):
         """Add each station's expected wait time with error bars."""
         self.view_model.add_wait_stat("Expected wait per station:")
         for name, expectation, std_dev in station_stats:
-            self.view_model.add_wait_stat(f"{name}: {expectation:.1f} +/- {std_dev:.1f}s")
+            self.view_model.add_wait_stat(
+                f"{name}: {expectation:.1f} +/- {std_dev:.1f}s"
+            )
 
     def show_map_expectation(self, expectation: float, std_dev: float) -> None:
         """Add the map's total expected wait time with error bars."""
@@ -49,9 +134,7 @@ class GamePresenter(GameOutputBoundry):
         """Show <stations> as the map the player is on."""
         self.view_model.set_stations(stations)
 
-    def show_roads(
-        self, roads: list[tuple[tuple[int, int], tuple[int, int]]]
-    ) -> None:
+    def show_roads(self, roads: list[tuple[tuple[int, int], tuple[int, int]]]) -> None:
         """Draw the world's roads, each an ordered (from, to) coordinate pair."""
         self.view_model.set_roads(roads)
 
