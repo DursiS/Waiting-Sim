@@ -3,6 +3,8 @@ import time
 from datetime import timedelta
 from Entities import Station
 
+DEFAULT_BALANCE = 100.0
+
 
 class Player:
     """The player travelling the world station-to-station."""
@@ -16,15 +18,16 @@ class Player:
 
     def __init__(
         self,
-        starting_station: Station,
-        name: str = "Player1",
+        starting_station: Station | None,
+        name: str = "Admin",
+        starting_balance: int = DEFAULT_BALANCE,
     ) -> None:
         self.name = name
         self.station = starting_station
         self.time_waited = timedelta(seconds=0)
         self.stations_visited = {}
         self.id = random.randint(1, 10**5)
-        self.balance = 0
+        self.balance = starting_balance
 
     def move(self, new_station: Station) -> bool:
         """Move the player onto <new_station> and mark it visited."""
