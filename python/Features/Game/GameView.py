@@ -1,10 +1,9 @@
 import threading
-import time
 from typing import Callable
 
 import pygame
 
-import Audio
+from Data import Audio
 from Features.Game import (
     GameController,
     GamePresenter,

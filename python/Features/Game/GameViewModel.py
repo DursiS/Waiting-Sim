@@ -171,8 +171,11 @@ class GameViewModel:
         self.width = max(int(MARGIN_X * 2 + x_m * self.road_length), MIN_WIDTH)
         self.height = max(
             int(
-                HUD_TOP_HEIGHT + NODE_TOP_PAD + y_m * self.road_length
-                + NODE_BOTTOM_PAD + BOTTOM_BAR_HEIGHT
+                HUD_TOP_HEIGHT
+                + NODE_TOP_PAD
+                + y_m * self.road_length
+                + NODE_BOTTOM_PAD
+                + BOTTOM_BAR_HEIGHT
             ),
             MIN_HEIGHT,
         )
@@ -183,9 +186,7 @@ class GameViewModel:
         self.last_train = None
         self._recompute_dimensions()
 
-    def set_roads(
-        self, roads: list[tuple[tuple[int, int], tuple[int, int]]]
-    ) -> None:
+    def set_roads(self, roads: list[tuple[tuple[int, int], tuple[int, int]]]) -> None:
         """Set the roads to draw, each an ordered (from, to) coordinate pair.
 
         One lane is drawn per road, so a connection roaded both ways shows dual
@@ -203,11 +204,12 @@ class GameViewModel:
         <travel_seconds>, the real time the ride spends travelling the line."""
         origin = self.curr_station
         self.incoming_train = (
-            origin, destination, pygame.time.get_ticks(), travel_seconds,
+            origin,
+            destination,
+            pygame.time.get_ticks(),
+            travel_seconds,
         )
-        self.last_train = (
-            origin.name if origin is not None else "?", destination.name
-        )
+        self.last_train = (origin.name if origin is not None else "?", destination.name)
 
     def clear_messages(self) -> None:
         """Empty the running status messages."""
@@ -258,9 +260,7 @@ class GameViewModel:
             int(HUD_TOP_HEIGHT + NODE_TOP_PAD + y * self.road_length),
         )
 
-    def _truncate(
-        self, text: str, font: pygame.font.Font, max_width: int
-    ) -> str:
+    def _truncate(self, text: str, font: pygame.font.Font, max_width: int) -> str:
         """Return <text> shortened with an ellipsis to fit <max_width>."""
         if font.size(text)[0] <= max_width:
             return text
@@ -309,10 +309,14 @@ class GameViewModel:
         ux, uy = direction
         px, py = -uy, ux
         tip = (pos[0] + ux * ARROW_LEN, pos[1] + uy * ARROW_LEN)
-        left = (pos[0] - ux * ARROW_LEN + px * ARROW_WID,
-                pos[1] - uy * ARROW_LEN + py * ARROW_WID)
-        right = (pos[0] - ux * ARROW_LEN - px * ARROW_WID,
-                 pos[1] - uy * ARROW_LEN - py * ARROW_WID)
+        left = (
+            pos[0] - ux * ARROW_LEN + px * ARROW_WID,
+            pos[1] - uy * ARROW_LEN + py * ARROW_WID,
+        )
+        right = (
+            pos[0] - ux * ARROW_LEN - px * ARROW_WID,
+            pos[1] - uy * ARROW_LEN - py * ARROW_WID,
+        )
         pygame.draw.polygon(screen, ARROW_COLOR, [tip, left, right])
 
     def _draw_stations(
@@ -325,8 +329,7 @@ class GameViewModel:
         for station in self.stations:
             cx, cy = self._node_pos(station)
             is_current = (
-                self.curr_station is not None
-                and station.id == self.curr_station.id
+                self.curr_station is not None and station.id == self.curr_station.id
             )
             if is_current:
                 color, label_color = CURRENT_COLOR, CURRENT_LABEL_COLOR
@@ -359,9 +362,7 @@ class GameViewModel:
         pygame.draw.rect(surf, TRAIN_BORDER_COLOR, rect, width=1, border_radius=3)
         return surf
 
-    def _draw_train(
-        self, screen: pygame.Surface, label_font: pygame.font.Font
-    ) -> None:
+    def _draw_train(self, screen: pygame.Surface, label_font: pygame.font.Font) -> None:
         """Draw the winning train part-way from the player's station toward its
         destination, rotated to face its direction of travel."""
         if self.incoming_train is None:
@@ -408,7 +409,9 @@ class GameViewModel:
         screen.blit(total, (24, 20))
         best_width = 0
         if self.show_best:
-            best = hud_font.render(f"Best: {self.best_highscore}", True, BEST_SCORE_COLOR)
+            best = hud_font.render(
+                f"Best: {self.best_highscore}", True, BEST_SCORE_COLOR
+            )
             screen.blit(best, (24, 20 + total.get_height() + 8))
             best_width = best.get_width()
 
@@ -441,7 +444,11 @@ class GameViewModel:
             key_surf = font.render(key, True, KEY_COLOR)
             label_surf = font.render(label, True, CONTROL_LABEL_COLOR)
             items.append(
-                (key_surf, label_surf, key_surf.get_width() + 7 + label_surf.get_width())
+                (
+                    key_surf,
+                    label_surf,
+                    key_surf.get_width() + 7 + label_surf.get_width(),
+                )
             )
         total = sum(w for _, _, w in items) + CONTROL_GAP * (len(items) - 1)
         x = (self.width - total) // 2
@@ -563,7 +570,10 @@ class GameViewModel:
         question = font.render(self.prompt, True, PROMPT_COLOR)
         screen.blit(
             question,
-            (BETTING_MARGIN, self.betting_height - BETTING_MARGIN - BETTING_LINE_HEIGHT * 2 - 8),
+            (
+                BETTING_MARGIN,
+                self.betting_height - BETTING_MARGIN - BETTING_LINE_HEIGHT * 2 - 8,
+            ),
         )
         box = pygame.Rect(
             BETTING_MARGIN,

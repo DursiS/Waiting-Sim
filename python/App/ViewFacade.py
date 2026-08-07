@@ -3,7 +3,7 @@ from typing import Callable
 
 import pygame
 
-import Audio
+from Data.Game import Audio
 from Features.Game import GameView
 from Features.Simulation import SimulationView
 
@@ -65,7 +65,7 @@ ABOUT_LINES = [
     "you read the network's rhythm -- reach the end with as little",
     "total waiting as possible.",
     "",
-    "Simulation mode runs many trials to",
+    "Game mode runs many trials to",
     "observe the waiting-time phenomena across a whole network.",
     "",
     "GitHub: github.com/DursiS/Waiting-Sim",
@@ -217,7 +217,7 @@ class ViewFacade:
         )
 
     def _draw_menu(self) -> None:
-        """Draw the Game/Simulation/Quit menu beneath the app logo."""
+        """Draw the Game/Game/Quit menu beneath the app logo."""
         self._screen.fill(BG_COLOR)
         width, height = self._screen.get_size()
 
@@ -225,7 +225,7 @@ class ViewFacade:
 
         prompt_font = pygame.font.SysFont(None, 30)
         prompt = prompt_font.render(
-            "P Play   S Simulation   O About   Q Quit",
+            "P Play   S Game   O About   Q Quit",
             True,
             PROMPT_COLOR,
         )

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import timedelta
 
 from Entities import GameOutputData, Station
-from Entities.TurnResult import TurnResult
+from Entities.Game import TurnResult
 
 
 class GameOutputBoundry(ABC):
@@ -60,9 +60,7 @@ class GameOutputBoundry(ABC):
         """Show <stations> as the map the player is on."""
 
     @abstractmethod
-    def show_roads(
-        self, roads: list[tuple[tuple[int, int], tuple[int, int]]]
-    ) -> None:
+    def show_roads(self, roads: list[tuple[tuple[int, int], tuple[int, int]]]) -> None:
         """Draw the world's roads, each an ordered (from, to) coordinate pair."""
 
     @abstractmethod

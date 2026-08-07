@@ -1,4 +1,4 @@
-from Entities import Bet, GameOutputData
+from Entities.Game import Bet, GameOutputData
 
 
 class BetLog:

@@ -1,8 +1,17 @@
 import random
 from datetime import timedelta
 
-from Entities import Bet, BetLog, GameInputData, GameOutputData, Station, World, Player, Line
-from Entities.TurnResult import TurnResult
+from Entities import (
+    Bet,
+    BetLog,
+    GameInputData,
+    GameOutputData,
+    Station,
+    World,
+    Player,
+    Line,
+)
+from Entities.Game import TurnResult
 from Features.Game import GameInputBoundry, GameOutputBoundry
 from Data import WorldDataAccessInterface
 

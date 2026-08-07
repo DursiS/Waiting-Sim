@@ -1,4 +1,4 @@
-# Pre-importing to use Features.Simulation as a facade
+# Pre-importing to use Features.Game as a facade
 from .SimulationInputBoundry import SimulationInputBoundry
 from .SimulationOutputBoundry import SimulationOutputBoundry
 from .SimulationViewModel import SimulationViewModel

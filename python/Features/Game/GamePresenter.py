@@ -1,9 +1,9 @@
 import time
 from datetime import timedelta
 
-import Audio
+from Data import Audio
 from Entities import GameOutputData, Station
-from Entities.TurnResult import TurnResult
+from Entities.Game import TurnResult
 from Features.Game import GameOutputBoundry, GameViewModel
 
 REPLAY_PROMPT = "Press R to restart this map, P to play a different map, or Q to quit."

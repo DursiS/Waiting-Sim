@@ -1,6 +1,6 @@
 import random
 
-from Entities import GameOutputData
+from Entities.Game import GameOutputData
 
 
 class Bet:
