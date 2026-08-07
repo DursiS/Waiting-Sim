@@ -1,0 +1,2 @@
+class SimulationOutputData:
+    pass

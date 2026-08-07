@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 
-from Entities import Player
-
 
 @dataclass
 class GameInputData:

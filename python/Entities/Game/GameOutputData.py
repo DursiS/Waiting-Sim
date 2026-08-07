@@ -1,4 +1,4 @@
-from Entities.TurnResult import TurnResult
+from Entities.Entities import TurnResult
 
 
 class GameOutputData:

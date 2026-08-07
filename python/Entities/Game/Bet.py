@@ -1,7 +1,5 @@
 import random
 
-import numpy as np
-
 from Entities import GameOutputData
 
 
