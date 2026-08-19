@@ -3,7 +3,9 @@
     "id": 0,
     "name": "Coinflip Cove",
     "rule_name": "poisson",
-    "rule_params": {"mu": 2.5},
+    "rule_params": {
+      "mu": 2.5
+    },
     "times_visited": 0,
     "waited_at": 0
   },
@@ -11,7 +13,9 @@
     "id": 1,
     "name": "Deadend Dock",
     "rule_name": "poisson",
-    "rule_params": {"mu": 1.5},
+    "rule_params": {
+      "mu": 1.5
+    },
     "times_visited": 0,
     "waited_at": 0
   },
@@ -19,7 +23,10 @@
     "id": 2,
     "name": "Junction Jetty",
     "rule_name": "binomial",
-    "rule_params": {"n": 4, "p": 0.5},
+    "rule_params": {
+      "n": 4,
+      "p": 0.5
+    },
     "times_visited": 0,
     "waited_at": 0
   },
@@ -27,7 +34,9 @@
     "id": 3,
     "name": "Longshot Landing",
     "rule_name": "geometric",
-    "rule_params": {"p": 0.25},
+    "rule_params": {
+      "p": 0.25
+    },
     "times_visited": 0,
     "waited_at": 0
   },
@@ -35,7 +44,9 @@
     "id": 4,
     "name": "Twilight Terminal",
     "rule_name": "geometric",
-    "rule_params": {"p": 0.40},
+    "rule_params": {
+      "p": 0.4
+    },
     "times_visited": 0,
     "waited_at": 0
   },
@@ -43,7 +54,10 @@
     "id": 5,
     "name": "Patience Platform",
     "rule_name": "n_binomial",
-    "rule_params": {"n": 3, "p": 0.5},
+    "rule_params": {
+      "n": 3,
+      "p": 0.5
+    },
     "times_visited": 0,
     "waited_at": 0
   },
@@ -51,7 +65,10 @@
     "id": 6,
     "name": "Lower Trap",
     "rule_name": "n_binomial",
-    "rule_params": {"n": 2, "p": 0.28},
+    "rule_params": {
+      "n": 2,
+      "p": 0.28
+    },
     "times_visited": 0,
     "waited_at": 0
   },
@@ -59,7 +76,10 @@
     "id": 7,
     "name": "Finish Ferry",
     "rule_name": "discrete_uniform",
-    "rule_params": {"low": 1, "high": 5},
+    "rule_params": {
+      "low": 1,
+      "high": 5
+    },
     "times_visited": 0,
     "waited_at": 0
   },
@@ -67,7 +87,770 @@
     "id": 8,
     "name": "Sudden Siding",
     "rule_name": "binomial",
-    "rule_params": {"n": 8, "p": 0.65},
+    "rule_params": {
+      "n": 8,
+      "p": 0.65
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "9": {
+    "id": 9,
+    "name": "Coinflip Cove 2",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 2.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "10": {
+    "id": 10,
+    "name": "Deadend Dock 2",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 1.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "11": {
+    "id": 11,
+    "name": "Junction Jetty 2",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 4,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "12": {
+    "id": 12,
+    "name": "Longshot Landing 2",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.25
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "13": {
+    "id": 13,
+    "name": "Twilight Terminal 2",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.4
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "14": {
+    "id": 14,
+    "name": "Patience Platform 2",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 3,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "15": {
+    "id": 15,
+    "name": "Lower Trap 2",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 2,
+      "p": 0.28
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "16": {
+    "id": 16,
+    "name": "Finish Ferry 2",
+    "rule_name": "discrete_uniform",
+    "rule_params": {
+      "low": 1,
+      "high": 5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "17": {
+    "id": 17,
+    "name": "Sudden Siding 2",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 8,
+      "p": 0.65
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "18": {
+    "id": 18,
+    "name": "Coinflip Cove 3",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 2.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "19": {
+    "id": 19,
+    "name": "Deadend Dock 3",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 1.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "20": {
+    "id": 20,
+    "name": "Junction Jetty 3",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 4,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "21": {
+    "id": 21,
+    "name": "Longshot Landing 3",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.25
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "22": {
+    "id": 22,
+    "name": "Twilight Terminal 3",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.4
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "23": {
+    "id": 23,
+    "name": "Patience Platform 3",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 3,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "24": {
+    "id": 24,
+    "name": "Lower Trap 3",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 2,
+      "p": 0.28
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "25": {
+    "id": 25,
+    "name": "Finish Ferry 3",
+    "rule_name": "discrete_uniform",
+    "rule_params": {
+      "low": 1,
+      "high": 5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "26": {
+    "id": 26,
+    "name": "Sudden Siding 3",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 8,
+      "p": 0.65
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "27": {
+    "id": 27,
+    "name": "Coinflip Cove 4",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 2.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "28": {
+    "id": 28,
+    "name": "Deadend Dock 4",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 1.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "29": {
+    "id": 29,
+    "name": "Junction Jetty 4",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 4,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "30": {
+    "id": 30,
+    "name": "Longshot Landing 4",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.25
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "31": {
+    "id": 31,
+    "name": "Twilight Terminal 4",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.4
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "32": {
+    "id": 32,
+    "name": "Patience Platform 4",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 3,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "33": {
+    "id": 33,
+    "name": "Lower Trap 4",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 2,
+      "p": 0.28
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "34": {
+    "id": 34,
+    "name": "Finish Ferry 4",
+    "rule_name": "discrete_uniform",
+    "rule_params": {
+      "low": 1,
+      "high": 5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "35": {
+    "id": 35,
+    "name": "Sudden Siding 4",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 8,
+      "p": 0.65
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "36": {
+    "id": 36,
+    "name": "Coinflip Cove 5",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 2.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "37": {
+    "id": 37,
+    "name": "Deadend Dock 5",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 1.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "38": {
+    "id": 38,
+    "name": "Junction Jetty 5",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 4,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "39": {
+    "id": 39,
+    "name": "Longshot Landing 5",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.25
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "40": {
+    "id": 40,
+    "name": "Twilight Terminal 5",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.4
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "41": {
+    "id": 41,
+    "name": "Patience Platform 5",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 3,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "42": {
+    "id": 42,
+    "name": "Lower Trap 5",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 2,
+      "p": 0.28
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "43": {
+    "id": 43,
+    "name": "Finish Ferry 5",
+    "rule_name": "discrete_uniform",
+    "rule_params": {
+      "low": 1,
+      "high": 5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "44": {
+    "id": 44,
+    "name": "Sudden Siding 5",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 8,
+      "p": 0.65
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "45": {
+    "id": 45,
+    "name": "Coinflip Cove 6",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 2.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "46": {
+    "id": 46,
+    "name": "Deadend Dock 6",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 1.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "47": {
+    "id": 47,
+    "name": "Junction Jetty 6",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 4,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "48": {
+    "id": 48,
+    "name": "Longshot Landing 6",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.25
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "49": {
+    "id": 49,
+    "name": "Twilight Terminal 6",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.4
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "50": {
+    "id": 50,
+    "name": "Patience Platform 6",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 3,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "51": {
+    "id": 51,
+    "name": "Lower Trap 6",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 2,
+      "p": 0.28
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "52": {
+    "id": 52,
+    "name": "Finish Ferry 6",
+    "rule_name": "discrete_uniform",
+    "rule_params": {
+      "low": 1,
+      "high": 5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "53": {
+    "id": 53,
+    "name": "Sudden Siding 6",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 8,
+      "p": 0.65
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "54": {
+    "id": 54,
+    "name": "Coinflip Cove 7",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 2.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "55": {
+    "id": 55,
+    "name": "Deadend Dock 7",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 1.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "56": {
+    "id": 56,
+    "name": "Junction Jetty 7",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 4,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "57": {
+    "id": 57,
+    "name": "Longshot Landing 7",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.25
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "58": {
+    "id": 58,
+    "name": "Twilight Terminal 7",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.4
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "59": {
+    "id": 59,
+    "name": "Patience Platform 7",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 3,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "60": {
+    "id": 60,
+    "name": "Lower Trap 7",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 2,
+      "p": 0.28
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "61": {
+    "id": 61,
+    "name": "Finish Ferry 7",
+    "rule_name": "discrete_uniform",
+    "rule_params": {
+      "low": 1,
+      "high": 5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "62": {
+    "id": 62,
+    "name": "Sudden Siding 7",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 8,
+      "p": 0.65
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "63": {
+    "id": 63,
+    "name": "Coinflip Cove 8",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 2.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "64": {
+    "id": 64,
+    "name": "Deadend Dock 8",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 1.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "65": {
+    "id": 65,
+    "name": "Junction Jetty 8",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 4,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "66": {
+    "id": 66,
+    "name": "Longshot Landing 8",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.25
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "67": {
+    "id": 67,
+    "name": "Twilight Terminal 8",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.4
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "68": {
+    "id": 68,
+    "name": "Patience Platform 8",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 3,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "69": {
+    "id": 69,
+    "name": "Lower Trap 8",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 2,
+      "p": 0.28
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "70": {
+    "id": 70,
+    "name": "Finish Ferry 8",
+    "rule_name": "discrete_uniform",
+    "rule_params": {
+      "low": 1,
+      "high": 5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "71": {
+    "id": 71,
+    "name": "Sudden Siding 8",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 8,
+      "p": 0.65
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "72": {
+    "id": 72,
+    "name": "Coinflip Cove 9",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 2.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "73": {
+    "id": 73,
+    "name": "Deadend Dock 9",
+    "rule_name": "poisson",
+    "rule_params": {
+      "mu": 1.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "74": {
+    "id": 74,
+    "name": "Junction Jetty 9",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 4,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "75": {
+    "id": 75,
+    "name": "Longshot Landing 9",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.25
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "76": {
+    "id": 76,
+    "name": "Twilight Terminal 9",
+    "rule_name": "geometric",
+    "rule_params": {
+      "p": 0.4
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "77": {
+    "id": 77,
+    "name": "Patience Platform 9",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 3,
+      "p": 0.5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "78": {
+    "id": 78,
+    "name": "Lower Trap 9",
+    "rule_name": "n_binomial",
+    "rule_params": {
+      "n": 2,
+      "p": 0.28
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "79": {
+    "id": 79,
+    "name": "Finish Ferry 9",
+    "rule_name": "discrete_uniform",
+    "rule_params": {
+      "low": 1,
+      "high": 5
+    },
+    "times_visited": 0,
+    "waited_at": 0
+  },
+  "80": {
+    "id": 80,
+    "name": "Sudden Siding 9",
+    "rule_name": "binomial",
+    "rule_params": {
+      "n": 8,
+      "p": 0.65
+    },
     "times_visited": 0,
     "waited_at": 0
   }
