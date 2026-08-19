@@ -94,3 +94,12 @@ class World:
             for direction in DIRECTION_DELTAS
             if (found := self.neighbor(station, direction)) is not None
         ]
+
+    def starting_station(self) -> Station | None:
+        """Return the start: the one station no road leads into (the source of
+        the directed graph)."""
+        targets = {line.to_id() for lines in self._lines.values() for line in lines}
+        for station in self._stations:
+            if station.id not in targets:
+                return station
+        return None
