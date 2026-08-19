@@ -37,7 +37,13 @@ class GamePresenter(GameOutputBoundry):
         self.view_model.set_game_over(False)
         self.clear_messages()
         self.show_total_wait(0.0)
+        self.view_model.set_steps(0)
         self.show_player_station(spawn)
+
+    def present_bets(self, bets: list[tuple[int, int, float]]) -> None:
+        """Register the placed bets and their prior odds so the HUD can track
+        each one's win probability and fair odds through the game."""
+        self.view_model.set_bet_targets(bets)
 
     def present_game_turn(self, turn: TurnResult) -> None:
         """Animate one played turn: wait for the ride (dots, no train) for the
@@ -54,7 +60,9 @@ class GamePresenter(GameOutputBoundry):
         self.show_loading(False)
         self.say_time_waited(turn.t_waited, turn._to.name)
         self.say_travelling(turn.t_travel, turn._to.name)
-        self.show_incoming_train(turn._to, turn.t_travel.total_seconds())
+        self.show_incoming_train(
+            turn._to, turn.t_travel.total_seconds(), turn.t_waited.total_seconds()
+        )
         self.show_loading(True)
         if self._animate:
             time.sleep(turn.t_travel.total_seconds())
@@ -67,6 +75,8 @@ class GamePresenter(GameOutputBoundry):
             + turn.t_travel.total_seconds()
         )
         self.chime_arrival()
+        self.view_model.set_steps(self.view_model.steps + 1)
+        self.view_model.set_bet_odds(turn.probabilities)
 
     def present_game_state(self, game: GameOutputData) -> None:
         """Present the finished game: the total wait, then the closing message.
@@ -87,14 +97,25 @@ class GamePresenter(GameOutputBoundry):
         self.show_game_over(True)
 
     def _present_bet_result(self, game: GameOutputData) -> None:
-        """Show the gamble's outcome in the HUD, read off the settled payout."""
-        if game.payout > 0:
-            self.view_model.set_bet_result(f"You won {game.payout:.2f}!")
-            Audio.play("victory")
+        """Show the gamble's outcome in the HUD: how many steps the game took,
+        each bet's result and the net payout, then the replay prompt."""
+        steps = len(game.get_results())
+        lines = [f"Reached the end in {steps} steps"]
+        if game.bet_results:
+            lows = [bet["end_steps"] for bet in game.bet_results]
+            low, high = min(lows), max(lows)
+            span = f"{low} steps" if low == high else f"{low}-{high} steps"
+            stake = game.bet_results[0]["amount"]
+            if game.payout > 0:
+                lines.append(f"Bet {stake:.2f} on {span}  ->  WON +{game.payout:.2f}")
+            else:
+                lines.append(f"Bet {stake:.2f} on {span}  ->  LOST")
         else:
-            self.view_model.set_bet_result("No winning bets.")
-            Audio.play("lose")
-        self.view_model.add_message(REPLAY_PROMPT)
+            lines.append("No bets placed.")
+        lines.append(f"Net payout: {game.payout:+.2f}")
+        lines.append("Press R to restart or Q to quit")
+        self.view_model.set_bet_result("\n".join(lines))
+        Audio.play("victory" if game.payout > 0 else "lose")
 
     def clear_messages(self) -> None:
         """Clear the running turn messages before a new turn."""
@@ -157,9 +178,12 @@ class GamePresenter(GameOutputBoundry):
         """Show or hide the animated waiting dots while waiting for trains."""
         self.view_model.set_loading(loading)
 
-    def show_incoming_train(self, destination: Station, seconds: float) -> None:
-        """Depart the winning train toward <destination>, travelling <seconds>."""
-        self.view_model.set_incoming_train(destination, seconds)
+    def show_incoming_train(
+        self, destination: Station, seconds: float, wait_seconds: float
+    ) -> None:
+        """Depart the winning train toward <destination>, travelling <seconds>,
+        after <wait_seconds> spent waiting for it."""
+        self.view_model.set_incoming_train(destination, seconds, wait_seconds)
 
     def chime_arrival(self) -> None:
         """Sound a soft chime as the player arrives at a station mid-game."""
@@ -224,7 +248,7 @@ class GamePresenter(GameOutputBoundry):
 
     def say_explanation(self) -> None:
         """Add the new-game explanation of how to play and the goal."""
-        self.view_model.add_message("Welcome to Waiting-Sim!")
+        self.view_model.add_message("Welcome to Thingamabob Simulator!")
         self.view_model.add_message(
             "Each turn you wait at your station for the next ride; the first to "
             "arrive takes you to that neighbouring station."

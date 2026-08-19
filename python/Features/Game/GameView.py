@@ -1,4 +1,5 @@
 import threading
+import traceback
 from typing import Callable
 
 import pygame
@@ -14,7 +15,6 @@ from Features.Game import (
 
 INPUT_BG_COLOR = (0, 0, 0)
 INPUT_TEXT_COLOR = (255, 255, 255)
-MAX_BETS = 3
 
 
 class GameView:
@@ -43,7 +43,8 @@ class GameView:
     _bet_mode: str | None
     _raw_bets: list
     _bet_balance: float
-    _pending_steps: int
+    _pending_low: int
+    _pending_high: int
 
     def __init__(
         self,
@@ -69,13 +70,14 @@ class GameView:
         self._bet_mode = None
         self._raw_bets = []
         self._bet_balance = 0.0
-        self._pending_steps = 0
+        self._pending_low = 0
+        self._pending_high = 0
 
         self._clock = pygame.time.Clock()
         self._screen = pygame.display.set_mode(
             (self._view_model.width, self._view_model.height)
         )
-        pygame.display.set_caption("Waiting-Sim")
+        pygame.display.set_caption("Thingamabob Simulator")
         self.keydown_loop()
 
     def keydown_loop(self) -> None:
@@ -109,6 +111,8 @@ class GameView:
                 self.on_restart()
             elif event.key in (pygame.K_q, pygame.K_ESCAPE):
                 self.on_quit()
+        elif event.key in (pygame.K_q, pygame.K_ESCAPE):
+            self.on_quit()
 
     def _draw(self) -> None:
         """Draw the betting screen or the rail map for the current phase, sizing
@@ -137,6 +141,8 @@ class GameView:
         def worker() -> None:
             try:
                 action()
+            except Exception:
+                traceback.print_exc()
             finally:
                 self._busy = False
 
@@ -146,7 +152,7 @@ class GameView:
         """Draw the setup field currently being typed into over the rail map."""
         if self._input_mode == "map":
             ids = "/".join(str(m) for m in self._controller.get_map_ids())
-            label = f"Map id ({ids})"
+            label = f"Map id ({ids}, 3 recommended)"
         else:
             label = {
                 "name": "Name",
@@ -190,7 +196,11 @@ class GameView:
                 Audio.play("error")
                 return
             self._pending_map_id = int(self._input_buffer)
-            self._open_input("arrival")
+            if self._pending_gamble:
+                self._pending_rand_arrival = False
+                self._open_input("animate")
+            else:
+                self._open_input("arrival")
         elif self._input_mode == "arrival":
             if not self._is_yes_no():
                 return
@@ -240,27 +250,25 @@ class GameView:
         )
 
     def _begin_betting(self) -> None:
-        """Start collecting bets on the betting screen. Bets are gathered as raw
-        {end_steps, amount} data, prompting for one after another until the
-        player finishes or MAX_BETS is placed, then handed to the game as
-        raw_bets."""
+        """Start collecting the single interval bet: a lowest and highest step
+        count and a stake. Every integer in the interval is loaded as its own
+        bet, and the game tracks their combined win probability."""
         self._raw_bets = []
         self._bet_balance = self._controller.get_balance()
-        self._prompt_next_bet()
-
-    def _prompt_next_bet(self) -> None:
-        """Show the remaining balance and open the next bet's steps field."""
-        self._view_model.set_balance(self._bet_balance - self._staked())
-        self._bet_mode = "steps"
-        self._buffer = ""
-        self._view_model.set_prompt(
-            f"Bet {len(self._raw_bets) + 1}/{MAX_BETS} -- reach the end in how "
-            "many steps? (blank to finish)"
+        self._view_model.set_balance(self._bet_balance)
+        self._open_bet(
+            "range",
+            "Reach the end in how many steps? (low-high, blank to skip)",
         )
 
+    def _open_bet(self, mode: str, prompt: str) -> None:
+        """Open interval-bet field <mode> with <prompt>, clearing the buffer."""
+        self._bet_mode = mode
+        self._buffer = ""
+        self._view_model.set_prompt(prompt)
+
     def _handle_betting_input(self, event: pygame.event.Event) -> None:
-        """Collect the current bet field, looping until the player finishes or
-        has placed MAX_BETS; Escape leaves back to the menu."""
+        """Collect the current interval-bet field; Escape leaves to the menu."""
         if event.key == pygame.K_ESCAPE:
             self.on_quit()
         elif event.key == pygame.K_RETURN:
@@ -271,61 +279,52 @@ class GameView:
             self._buffer += event.unicode
 
     def _submit_bet(self) -> None:
-        """Advance the bet-collection flow when the open field is submitted."""
+        """Advance the interval-bet flow when the open field is submitted."""
         answer = self._buffer.strip()
-        if self._bet_mode == "steps":
-            self._submit_bet_steps(answer)
+        if self._bet_mode == "range":
+            self._submit_range(answer)
         elif self._bet_mode == "amount":
-            self._submit_bet_amount(answer)
+            self._submit_amount(answer)
 
-    def _submit_bet_steps(self, answer: str) -> None:
-        """Take the target step count, or finish betting on a blank answer."""
+    def _submit_range(self, answer: str) -> None:
+        """Take the interval as 'low-high' (or 'low high') on one line, or skip
+        betting on a blank answer."""
         if answer == "":
             self._finish_betting()
             return
-        if not answer.isdigit() or int(answer) <= 0:
+        parts = answer.replace("-", " ").split()
+        if len(parts) != 2 or not all(p.isdigit() for p in parts):
             Audio.play("error")
             return
-        self._pending_steps = int(answer)
-        self._bet_mode = "amount"
-        self._buffer = ""
-        self._view_model.set_prompt(
-            f"Stake on reaching the end in exactly {self._pending_steps} steps? "
-            "(blank to cancel)"
-        )
-
-    def _submit_bet_amount(self, answer: str) -> None:
-        """Take the stake and place the bet, or cancel it on a blank answer."""
-        if answer == "":
-            self._prompt_next_bet()
-            return
-        amount = self._parse_amount(answer)
-        if amount is None:
+        low, high = int(parts[0]), int(parts[1])
+        if low <= 0 or high < low:
             Audio.play("error")
             return
-        self._raw_bets.append({"end_steps": self._pending_steps, "amount": amount})
-        Audio.play("ding")
-        self._view_model.add_message(
-            f"Placed {amount:.2f} on reaching the end in {self._pending_steps} steps."
+        self._pending_low, self._pending_high = low, high
+        self._open_bet(
+            "amount",
+            f"Stake on {low}-{high} steps? (<= {self._bet_balance:.2f})",
         )
-        if len(self._raw_bets) >= MAX_BETS:
-            self._finish_betting()
-        else:
-            self._prompt_next_bet()
 
-    def _parse_amount(self, answer: str) -> float | None:
-        """Return a positive stake within the remaining balance, or None."""
+    def _submit_amount(self, answer: str) -> None:
+        """Take the stake and place the interval bet."""
         try:
             amount = float(answer)
         except ValueError:
-            return None
-        if amount <= 0 or amount > self._bet_balance - self._staked():
-            return None
-        return amount
-
-    def _staked(self) -> float:
-        """Return the total already staked across the placed bets."""
-        return sum(bet["amount"] for bet in self._raw_bets)
+            Audio.play("error")
+            return
+        if amount <= 0 or amount > self._bet_balance:
+            Audio.play("error")
+            return
+        self._raw_bets = [
+            {
+                "low": self._pending_low,
+                "high": self._pending_high,
+                "amount": amount,
+            }
+        ]
+        Audio.play("ding")
+        self._finish_betting()
 
     def _finish_betting(self) -> None:
         """Close the betting screen and play out the gamble game."""
