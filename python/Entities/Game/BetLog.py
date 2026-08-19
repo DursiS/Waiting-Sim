@@ -15,6 +15,10 @@ class BetLog:
         self._history[n] = ([], None)
         return n
 
+    def current_phase_id(self) -> int:
+        """Return the most recent phase id."""
+        return max(self._history, default=-1)
+
     def add_bet(self, n: int, bet: Bet) -> None:
         """Add a bet to the log of a specific betting phase."""
         self._history[n][0].append(bet)

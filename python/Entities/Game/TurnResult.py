@@ -11,3 +11,4 @@ class TurnResult:
     _from: Station
     t_travel: float
     t_waited: float
+    probabilities: dict[int, float]

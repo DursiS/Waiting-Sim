@@ -39,6 +39,10 @@ class Bet:
         """Return the id of this bet."""
         return self._id
 
+    def get_end_steps(self) -> int:
+        """Return the amount of end_steps we bet on."""
+        return self._end_steps
+
     def payout(self, game: GameOutputData) -> float:
         """Settle this bet against <game>: record whether it won and return the
         winnings (stake times payoff factor) on a win, or 0.0 on a loss."""
@@ -46,3 +50,13 @@ class Bet:
         self._win = won
         self._finished = True
         return self._amount * self._payoff_factor if won else 0.0
+
+    def result(self) -> dict:
+        """Return this settled bet's outcome: its target step count, stake,
+        whether it won, and the winnings paid on a win."""
+        return {
+            "end_steps": self._end_steps,
+            "amount": self._amount,
+            "won": bool(self._win),
+            "winnings": self._amount * self._payoff_factor if self._win else 0.0,
+        }
