@@ -1,5 +1,10 @@
 import random
 from datetime import timedelta
+from typing import Any
+
+import numpy as np
+from scipy import integrate
+from scipy.stats import rv_frozen
 
 from Entities import (
     Bet,
@@ -30,6 +35,9 @@ class GameInteractor(GameInputBoundry):
     _last_game: tuple | None
     _log: BetLog
     _admin: Player
+    _curr_path: list[int]
+    _all_paths: list[tuple[int, ...]] | None
+    _p_memo: dict[tuple[int, int], float]
 
     def __init__(
         self, dao: WorldDataAccessInterface, presenter: GameOutputBoundry
@@ -37,10 +45,13 @@ class GameInteractor(GameInputBoundry):
 
         self._dao = dao
         self._presenter = presenter
-        self._world = self._new_world()
+        self._world = self._load_new_world()
         self._last_game = None
         self._log = BetLog()
         self._admin = Player(None)
+        self._curr_path = []
+        self._all_paths = None
+        self._p_memo = {}
 
     def execute(
         self,
@@ -49,51 +60,53 @@ class GameInteractor(GameInputBoundry):
     ) -> None:
         """Run the game described by <inputData> and, when gambling, settle its
         bets against the outcome, then present the finished state."""
-        game = self._game(
+        game = self._setup_game(
             player,
             inputData.name,
             inputData.map_id,
             inputData.rand_arrival,
             inputData.gamble,
+            inputData.raw_bets,
             inputData.animate,
         )
-        player = self._last_game[0]
-
         if inputData.gamble:
-            phase_id = self._log.new_betting_phase()
-            self._load_bets(phase_id, inputData.raw_bets)
-            game.phase_id = phase_id
-            self._payoff(player, self._admin, game)
+            self._payoff(self._last_game[0], self._admin, game)
 
         self._presenter.present_game_state(game)
 
-    def _load_bets(self, phase_id: int, raw_bets: list) -> None:
-        """Instantiate bets from the raw data and place them under <phase_id>.
-
-        <raw_bets> is the View's collected data: a list of
-        {"end_steps": int, "amount": float} entries."""
-        raise NotImplementedError
-
-    def _game(
+    def _setup_game(
         self,
         player: Player | None,
         name: str,
         map_id: int,
         rand_arrival: bool,
         gamble: bool,
+        raw_bets: list | None,
         animate: bool = True,
     ) -> GameOutputData:
         """Set up and run a Game to the end, presenting each turn and the
-        finished result."""
+        finished result. When gambling the bets are placed and locked before the
+        first turn, so every turn can report their updated probabilities."""
         self._load_map(map_id)
         if player is None:
             player = Player(
                 name=name,
                 starting_station=self._instantiate_station(
-                    self._dao.get_record(self._spawn_station_id())
+                    self._dao.get_record(self._world.starting_station().id)
                 ),
             )
         self._last_game = (player, name, map_id, rand_arrival, gamble)
+        self._curr_path = []
+        self._all_paths = None
+        self._p_memo = {}
+
+        phase_id, bets = -1, ()
+        if gamble:
+            phase_id = self._log.new_betting_phase()
+            self._load_bets(phase_id, raw_bets)
+            self._log.complete_phase(phase_id)
+            bets = self._log.get_bets(phase_id)
+
         self._presenter.present_game_setup(
             self._world.get_stations(),
             self._view_roads(),
@@ -101,14 +114,24 @@ class GameInteractor(GameInputBoundry):
             gamble,
             animate,
         )
+        self._presenter.present_bets(
+            [
+                (
+                    bet.id(),
+                    bet.get_end_steps(),
+                    self._p(bet.get_end_steps(), player.station),
+                )
+                for bet in bets
+            ]
+        )
 
         turn_results = []
         while not player.station.end:
-            turn_results.append(self._game_turn(player, rand_arrival))
+            turn_results.append(self._game_turn(player, rand_arrival, bets))
             self._presenter.present_game_turn(turn_results[-1])
 
         return GameOutputData(
-            phase_id=-1,
+            phase_id=phase_id,
             turn_results=turn_results,
             gamble=gamble,
             rand_arrival=rand_arrival,
@@ -120,9 +143,80 @@ class GameInteractor(GameInputBoundry):
         if self._last_game is None:
             return None
         _, name, map_id, rand_arrival, gamble = self._last_game
-        game = self._game(None, name, map_id, rand_arrival, gamble)
+        game = self._setup_game(None, name, map_id, rand_arrival, gamble, None)
         self._presenter.present_game_state(game)
         return game
+
+    def _payoff(self, player: Player, admin: Player, game: GameOutputData) -> float:
+        """Handle the accounting of who needs to be paid
+        and how much given the outcome of the game."""
+        n = game.phase_id
+        self._log.complete_phase(n)
+        bets = self._log.get_bets(n)
+        payoff = 0.0
+        for bet in bets:
+            payoff += bet.payout(game)
+        player.balance += payoff
+        admin.balance -= payoff
+        game.payout = payoff
+        game.bet_results = [bet.result() for bet in bets]
+        return payoff
+
+    def _game_turn(
+        self, player: Player, rand_arrival: bool, bets: tuple[Bet, ...]
+    ) -> TurnResult:
+        """Run one turn of the game, extending the walked path and reporting the
+        updated probability of each bet."""
+
+        probabilities = {bet.id(): self._p(self._curr_path, bet) for bet in bets}
+
+        wait_times = self._sample_neighbours(player, rand_arrival)
+        t_waited, destination = self._fastest(wait_times)
+        t_travel = self._time_spent_traveling(player, destination)
+
+        _from = player.station
+        player.move(self._instantiate_station(self._dao.get_record(destination.id)))
+        _to = player.station
+        self._save_player(player, rand_arrival)
+
+        if not self._curr_path:
+            self._curr_path.append(_from.id)
+        self._curr_path.append(_to.id)
+
+        return TurnResult(
+            _to,
+            _from,
+            t_travel,
+            t_waited,
+            probabilities,
+        )
+
+    def _instantiate_station(self, record: dict) -> Station:
+        """Build a Station from the wait rules entry <record>."""
+        station = Station(
+            name=record["name"],
+            rule_name=record["rule_name"],
+            rule=record["rule"],
+            times_visited=record["times_visited"],
+            waited_at=record["waited_at"],
+            coordinates=record["coordinates"],
+            end=record["end"],
+        )
+        station.set_id(record["id"])
+        return station
+
+    def _view_roads(self) -> list[tuple[tuple[int, int], tuple[int, int]]]:
+        """Return each road as an ordered (from, to) pair of grid coordinates
+        for the view to draw as a one-way lane."""
+        return [
+            (line._from.coordinates, line._to.coordinates)
+            for lines in self._world.get_lines(None).values()
+            for line in lines
+        ]
+
+    # ========
+    # Getters & Setters
+    # =======
 
     def get_map_ids(self) -> list[int]:
         """Return the ids of every selectable map."""
@@ -134,55 +228,135 @@ class GameInteractor(GameInputBoundry):
             return self._last_game[0].balance
         return Player(None).balance
 
-    def _payoff(self, player: Player, admin: Player, game: GameOutputData) -> float:
-        """Handle the accounting of who needs to be paid
-        and how much given the outcome of the game."""
-        n = game.phase_id
-        self._log.complete_phase(n)
-        payoff = 0.0
-        for bet in self._log.get_bets(n):
-            payoff += bet.payout(game)
-        player.balance += payoff
-        admin.balance -= payoff
-        game.payout = payoff
-        return payoff
+    def _get_spawn_station_id(self) -> int:
+        """Return the id of the station farthest from the map's end.
 
-    def _game_turn(self, player: Player, rand_arrival: bool) -> None:
-        """Run one turn of the game, feeding the presenter as it goes."""
+        Ties are broken by the lowest id so a map spawns deterministically."""
+        distances = self._get_distances_from(self._get_end_station_id())
+        farthest = max(distances.values())
+        return min(sid for sid, dist in distances.items() if dist == farthest)
 
-        wait_times = self._neighbour_wait_times(player, rand_arrival)
-        t_waited, destination = self._fastest(wait_times)
-        t_travel = self._time_spent_traveling(player, destination)
+    def _get_end_station_id(self) -> int:
+        """Return the id of the map's end station."""
+        for record in self._dao.get_records():
+            if record["end"]:
+                return record["id"]
+        raise ValueError("map has no end station")
 
-        _from = player.station
-        player.move(self._instantiate_station(self._dao.get_record(destination.id)))
-        _to = player.station
-        self._save_player(player, rand_arrival)
+    def _get_distances_from(self, start_id: int) -> dict[int, int]:
+        """Return the step distance to every reachable station."""
+        distances = {start_id: 0}
+        queue = [start_id]
+        while queue:
+            current = queue.pop(0)
+            for neighbor_id in self._get_adjacent_ids(current):
+                if neighbor_id not in distances:
+                    distances[neighbor_id] = distances[current] + 1
+                    queue.append(neighbor_id)
+        return distances
 
-        return TurnResult(_to, _from, t_travel, t_waited)
+    def _get_adjacent_ids(self, station_id: int) -> list[int]:
+        """Return the ids of the stations adjacent on the grid."""
+        station = self._world.station_at(
+            tuple(self._dao.get_record(station_id)["coordinates"])
+        )
+        return [neighbor.id for neighbor in self._world.adjacent_stations(station)]
 
-    def _paths(self) -> list[int]:
-        """Return a list of all possible paths to the end of
-        the world currently loaded in, representing stations as their ids."""
+    # ========
+    # Gambling
+    # ========
 
-        # vectorize
-        raise NotImplementedError
+    # def _paths(self, station: Station) -> list[tuple[int, ...]]:
+    #     """Return every directed path from <station> to the end of the currently
+    #     loaded world, each a tuple of station ids. Follows the one-way roads, so
+    #     an acyclic map yields a finite set of paths."""
+    #     if station.end:
+    #         return [(station.id,)]
+    #     paths = []
+    #     for road in self._world.roads_from(station):
+    #         neighbour = self._world.get_station_by_id(road.to_id())
+    #         for tail in self._paths(neighbour):
+    #             paths.append((station.id,) + tail)
+    #     return paths
+    #
+    # def _conditioned_paths(
+    #     self, total_paths: list[tuple[int, ...]], curr_path: list[int]
+    # ) -> list[tuple[int, ...]]:
+    #     """Return the paths from <total_paths> consistent with the walk so far
+    #     -- those that keep <curr_path> as a prefix."""
+    #     prefix = tuple(curr_path)
+    #     depth = len(prefix)
+    #     return [path for path in total_paths if tuple(path[:depth]) == prefix]
 
-    def _conditioned_paths(
-        self, total_paths: list[int], curr_path: list[int]
-    ) -> list[int]:
-        """Return a list of all possible paths left given our current
-        path so far."""
+    def _p(self, remaining: int, station: Station) -> float:
+        """Return the probability of reaching the end in exactly <remaining> more
+        steps from <station>, as a random walk over the outgoing roads.
 
-        # vectorize
-        raise NotImplementedError
+        Each branch is weighted by its transition probability (uniform for now),
+        so paths that share a prefix are not over-counted -- they are not
+        independent. Base case: standing on the end wins with 0 steps left. The
+        result depends only on the map, so it is memoised for the game."""
+        if station.end:
+            return 1.0 if remaining == 0 else 0.0
+        if remaining <= 0:
+            return 0.0
+        key = (remaining, station.id)
+        if key in self._p_memo:
+            return self._p_memo[key]
+        successors = [
+            self._world.get_station_by_id(road.to_id())
+            for road in self._world.roads_from(station)
+        ]
+        # Future: Weight = probability of transitioning
+        weight = 1.0 / len(successors) if successors else 0.0
+        result = sum(weight * self._p(remaining - 1, s) for s in successors)
+        self._p_memo[key] = result
+        return result
 
-    def _event_probability(self, curr_path: list[int]) -> float:
-        """Return the probability the bet's event occurs. Placeholder p = 1/2
-        until wired to the map's wait distributions."""
-        total_paths = self._paths()
-        valid_paths = self._conditioned_paths(total_paths, curr_path)
-        return len(valid_paths) / len(total_paths)
+    def _n_step_transition_matrix(
+        self, _from: Station, n: int = 1
+    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+        """Return the probability of being at <_to> within <n> steps
+        starting at <_from>."""
+        world_stations = self._world.get_stations()
+        size = len(world_stations)
+        index = {station.id: k for k, station in enumerate(world_stations)}
+        Q = np.zeros((size, size))
+
+        for station_j in world_stations:
+            neighbours = self._world.adjacent_stations(station_j)
+            rules = [neighbour.rule for neighbour in neighbours]
+            for k, neighbour in enumerate(neighbours):
+                Q[index[neighbour.id], index[station_j.id]] = (
+                    self._probability_is_fastest(rules[k], rules[:k] + rules[k + 1 :])
+                )
+
+        column_sums = Q.sum(axis=0)
+        column_sums[column_sums == 0] = 1.0
+        Q = Q / column_sums  # Normalization
+
+        return np.linalg.matrix_power(Q, n)
+
+    def _probability_is_fastest(
+        self, rule_j: rv_frozen, others: list[rv_frozen]
+    ) -> float:
+        """P(X_j < every rule in <others>) by conditioning on X_j = t,
+        then the survival probabilities multiply."""
+        if self._is_discrete(rule_j):
+            return float(
+                sum(
+                    rule_j.pmf(t) * np.prod([r.sf(t) for r in others])
+                    for t in self._discrete_support(rule_j)
+                )
+            )
+        lower, upper = self._continuous_bounds(rule_j)
+        return float(
+            integrate.quad(
+                lambda t: rule_j.pdf(t) * np.prod([r.sf(t) for r in others]),
+                lower,
+                upper,
+            )[0]
+        )
 
     def _create_bet(self, player: Player, amount: float, end_steps: int) -> Bet | None:
         """Build a bet on <end_steps>, or None if the stake or count is
@@ -191,13 +365,13 @@ class GameInteractor(GameInputBoundry):
             return None
         if end_steps <= 0:
             return None
-        return Bet(self._house_payoff_factor(end_steps), amount, end_steps)
+        return Bet(self._payoff_factor(end_steps), amount, end_steps)
 
-    def _house_payoff_factor(self, end_steps: int) -> float:
+    def _payoff_factor(self, end_steps: int, player: Player) -> float:
         """Return the profit multiple paid on a winning bet -- the fair odds
         shaved by the house edge -- so a stake returns stake * factor as profit
         on a win."""
-        p = 1 / 2
+        p = self._p(end_steps, player, None)
         fair_value = 1 / p
         house_value = fair_value * HOUSE_DEFLATOR
         return house_value - 1
@@ -243,7 +417,11 @@ class GameInteractor(GameInputBoundry):
             for record in self._dao.get_records()
         ]
 
-    def _get_map_expectation(self) -> tuple[float, float]:
+    # =========
+    # Computers
+    # =========
+
+    def _compute_map_ev(self) -> tuple[float, float]:
         """Return the map's total expected wait and the std dev of that total.
 
         Stations are treated as independent, so the variance of the total is
@@ -255,7 +433,7 @@ class GameInteractor(GameInputBoundry):
             total_variance += self._dao.get_std_dev(record["id"]) ** 2
         return total_expectation, total_variance**0.5
 
-    def _station_risks(self) -> list[tuple[str, float]]:
+    def _compute_risks(self) -> list[tuple[str, float]]:
         """Return the name and 95th-percentile risk wait of every station."""
 
         def f(station_id):
@@ -266,74 +444,28 @@ class GameInteractor(GameInputBoundry):
 
         return [(record["name"], f(record["id"])) for record in self._dao.get_records()]
 
-    def _map_risk(self) -> float:
+    def _compute_map_risk(self) -> float:
         """Return the map's 95th-percentile risk wait time for the total."""
-        total_expectation, total_std_dev = self._get_map_expectation()
+        total_expectation, total_std_dev = self._compute_map_ev()
         return total_expectation + Z_95 * total_std_dev
 
-    def _load_map(self, map_id: int) -> None:
-        """Switch to map <map_id>, rebuild the world and show it."""
-        self._dao.load_map(map_id)
-        self._world = self._new_world()
+    def _compute_neighbour_evs(
+        self, player: Player, rand_arrival: bool
+    ) -> list[tuple[Station, float]]:
+        """Return each adjacent station paired with its expected ride time."""
+        result = []
+        for neighbour in self._world.adjacent_stations(player.station):
+            expectation = self._dao.get_expectation(neighbour.id)
+            if rand_arrival:
+                expectation -= random.uniform(0, expectation) / 2
+            result.append((neighbour, expectation))
+        return result
 
-    def _instantiate_station(self, record: dict) -> Station:
-        """Build a Station from the wait rules entry <record>."""
-        station = Station(
-            name=record["name"],
-            rule_name=record["rule_name"],
-            rule=record["rule"],
-            times_visited=record["times_visited"],
-            waited_at=record["waited_at"],
-            coordinates=record["coordinates"],
-            end=record["end"],
-        )
-        station.set_id(record["id"])
-        return station
+    # =======
+    # Loaders
+    # =======
 
-    def _view_roads(self) -> list[tuple[tuple[int, int], tuple[int, int]]]:
-        """Return each road as an ordered (from, to) pair of grid coordinates
-        for the view to draw as a one-way lane."""
-        return [
-            (line._from.coordinates, line._to.coordinates)
-            for lines in self._world.get_lines(None).values()
-            for line in lines
-        ]
-
-    def _spawn_station_id(self) -> int:
-        """Return the id of the station farthest from the map's end.
-
-        Ties are broken by the lowest id so a map spawns deterministically."""
-        distances = self._distances_from(self._end_station_id())
-        farthest = max(distances.values())
-        return min(sid for sid, dist in distances.items() if dist == farthest)
-
-    def _end_station_id(self) -> int:
-        """Return the id of the map's end station."""
-        for record in self._dao.get_records():
-            if record["end"]:
-                return record["id"]
-        raise ValueError("map has no end station")
-
-    def _distances_from(self, start_id: int) -> dict[int, int]:
-        """Return the step distance to every reachable station."""
-        distances = {start_id: 0}
-        queue = [start_id]
-        while queue:
-            current = queue.pop(0)
-            for neighbor_id in self._adjacent_ids(current):
-                if neighbor_id not in distances:
-                    distances[neighbor_id] = distances[current] + 1
-                    queue.append(neighbor_id)
-        return distances
-
-    def _adjacent_ids(self, station_id: int) -> list[int]:
-        """Return the ids of the stations adjacent on the grid."""
-        station = self._world.station_at(
-            tuple(self._dao.get_record(station_id)["coordinates"])
-        )
-        return [neighbor.id for neighbor in self._world.adjacent_stations(station)]
-
-    def _new_world(self) -> World:
+    def _load_new_world(self) -> World:
         """Return a world built from the current map's station records, wiring
         up each station's roads as one-way lines between the built stations."""
         world = World()
@@ -353,24 +485,34 @@ class GameInteractor(GameInputBoundry):
                 )
         return world
 
-    def _neighbour_expected_times(
-        self, player: Player, rand_arrival: bool
-    ) -> list[tuple[Station, float]]:
-        """Return each adjacent station paired with its expected ride time."""
-        result = []
-        for neighbour in self._world.adjacent_stations(player.station):
-            expectation = self._dao.get_expectation(neighbour.id)
-            if rand_arrival:
-                expectation -= random.uniform(0, expectation) / 2
-            result.append((neighbour, expectation))
-        return result
+    def _load_map(self, map_id: int) -> None:
+        """Switch to map <map_id>, rebuild the world and show it."""
+        self._dao.load_map(map_id)
+        self._world = self._load_new_world()
 
-    def _neighbour_wait_times(
+    def _load_bets(self, phase_id: int, raw_bets: list) -> None:
+        """Load the interval bets under <phase_id>: for each
+        {"low", "high", "amount"} entry, place one bet per integer step count in
+        [low, high], so their win probabilities sum to the interval's. Invalid
+        bets are dropped by _create_bet."""
+        player = self._last_game[0]
+        for raw in raw_bets or []:
+            for end_steps in range(raw["low"], raw["high"] + 1):
+                bet = self._create_bet(player, raw["amount"], end_steps)
+                if bet is not None:
+                    self._log.add_bet(phase_id, bet)
+
+    # =====
+    # idk
+    # =====
+
+    def _sample_neighbours(
         self, player: Player, rand_arrival: bool
     ) -> list[tuple[Station, float]]:
-        """Sample each adjacent station's ride time with that station."""
+        """Sample the ride time to each station one road leads to from here."""
         result = []
-        for neighbour in self._world.adjacent_stations(player.station):
+        for road in self._world.roads_from(player.station):
+            neighbour = self._world.get_station_by_id(road.to_id())
             seconds = self._dao.sample_rule(neighbour.id)
             if rand_arrival:
                 arrival = random.uniform(0, seconds) / 2
