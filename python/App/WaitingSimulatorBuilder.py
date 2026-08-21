@@ -14,6 +14,12 @@ from Features.Simulation import (
     SimulationView,
     SimulationViewModel,
 )
+from Features.Flying import (
+    FlyingController,
+    FlyingPresenter,
+    FlyingView,
+    FlyingViewModel,
+)
 
 
 class WaitingSimulatorBuilder:
@@ -27,6 +33,17 @@ class WaitingSimulatorBuilder:
         self.view_facade = ViewFacade(
             game_view_factory=self.build_game,
             simulation_view_factory=self.build_simulation,
+            flying_view_factory=self.build_flying,
+        )
+
+    def build_flying(self) -> FlyingView:
+        """Build a new FlyingView that simulates and rolls out a bird's flight."""
+        flying_view_model = FlyingViewModel()
+        flying_presenter = FlyingPresenter(flying_view_model)
+        flying_controller = FlyingController(flying_presenter)
+        return FlyingView(
+            controller=flying_controller,
+            view_model=flying_view_model,
         )
 
     def build_game(self) -> GameView:
