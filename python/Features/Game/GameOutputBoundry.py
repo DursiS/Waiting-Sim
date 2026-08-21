@@ -21,6 +21,12 @@ class GameOutputBoundry(ABC):
         to animate turns."""
 
     @abstractmethod
+    def present_bets(self, bets: list[tuple[int, int, float]]) -> None:
+        """Show the placed bets -- each an (id, target step count, prior win
+        probability) triple -- whose live probability is tracked as the game
+        plays out."""
+
+    @abstractmethod
     def present_game_turn(self, turn: TurnResult) -> None:
         """Animate one played turn: wait for the ride, then travel to the next
         station."""
@@ -80,8 +86,11 @@ class GameOutputBoundry(ABC):
         """Show or hide the animated waiting dots while waiting for trains."""
 
     @abstractmethod
-    def show_incoming_train(self, destination: Station, seconds: float) -> None:
-        """Depart the winning train toward <destination>, travelling <seconds>."""
+    def show_incoming_train(
+        self, destination: Station, seconds: float, wait_seconds: float
+    ) -> None:
+        """Depart the winning train toward <destination>, travelling <seconds>,
+        after <wait_seconds> spent waiting for it."""
 
     @abstractmethod
     def chime_arrival(self) -> None:

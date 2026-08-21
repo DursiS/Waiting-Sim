@@ -96,6 +96,7 @@ class GameViewModel:
     bet_result: str | None
     bet_targets: dict[int, int]
     bet_odds: dict[int, float]
+    start_ev: float
     show_best: bool
     show_controls: bool
     phase: str
@@ -135,6 +136,7 @@ class GameViewModel:
         self.bet_result = None
         self.bet_targets = {}
         self.bet_odds = {}
+        self.start_ev = 0.0
         self.show_best = True
         self.show_controls = True
         self.phase = "game"
@@ -163,6 +165,8 @@ class GameViewModel:
         triples to track in the HUD, seeding each one's starting odds."""
         self.bet_targets = {bet_id: end_steps for bet_id, end_steps, _ in bets}
         self.bet_odds = {bet_id: prior for bet_id, _, prior in bets}
+        start_p = sum(prior for _, _, prior in bets)
+        self.start_ev = (1.0 / start_p) if start_p > 0 else float("inf")
 
     def set_bet_odds(self, probabilities: dict[int, float]) -> None:
         """Update each bet's live win probability, keyed by bet id."""
@@ -577,15 +581,15 @@ class GameViewModel:
 
     def _draw_bet_panel(self, screen: pygame.Surface) -> None:
         """Draw the live interval-bet tracker: the bet's step range, its combined
-        Bayesian win probability (the sum over the interval's step counts) and
-        its fair-odds expected value (1/p). Updates every turn while the game
-        plays; hidden once it is over."""
+        win probability (updated each turn) and the expected value locked in at
+        bet time (1/p at the start -- what the bettor actually gets, so it does
+        not move). Hidden once the game is over."""
         if not self.bet_targets or self.game_over:
             return
         title_font = pygame.font.SysFont(None, 22, bold=True)
         font = pygame.font.SysFont(None, 22)
 
-        box = pygame.Rect(12, HUD_TOP_HEIGHT + 8, 300, 62)
+        box = pygame.Rect(12, HUD_TOP_HEIGHT + 8, 300, 84)
         panel = pygame.Surface(box.size, pygame.SRCALPHA)
         panel.fill(BET_PANEL_BG_COLOR)
         screen.blit(panel, box.topleft)
@@ -600,10 +604,12 @@ class GameViewModel:
             odds = "P(Bet) = 0.00%"
         else:
             odds = f"P(Bet) = {p * 100:.2f}%"
+        ev = "EV = --" if self.start_ev in (0.0, float("inf")) else f"EV = {self.start_ev:.2f}x"
 
         x, y = box.left + 12, box.top + 8
         screen.blit(title_font.render(f"Bet: {span}", True, BET_RESULT_COLOR), (x, y))
-        screen.blit(font.render(odds, True, BET_ODDS_COLOR), (x, y + 26))
+        screen.blit(font.render(odds, True, BET_ODDS_COLOR), (x, y + 24))
+        screen.blit(font.render(ev, True, BET_ODDS_COLOR), (x, y + 46))
 
     def draw_betting(self, screen: pygame.Surface, typed: str) -> None:
         """Draw the betting screen: the balance, the odds box, the running
