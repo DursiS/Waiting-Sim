@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+/build/
+/dist/
+*.spec
+python/Data/Game/player_data.json
+python/Data/Game/highscores.json
