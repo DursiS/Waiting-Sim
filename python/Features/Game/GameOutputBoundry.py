@@ -1,11 +1,39 @@
 from abc import ABC, abstractmethod
 from datetime import timedelta
 
-from Entities import Station
+from Entities import GameOutputData, Station
+from Entities.Game import TurnResult
 
 
 class GameOutputBoundry(ABC):
     """An interface to decouple Adapter and Business logic."""
+
+    @abstractmethod
+    def present_game_setup(
+        self,
+        stations: list[Station],
+        roads: list[tuple[tuple[int, int], tuple[int, int]]],
+        spawn: Station,
+        gamble: bool,
+        animate: bool,
+    ) -> None:
+        """Show the map and reset the HUD for a fresh game, remembering whether
+        to animate turns."""
+
+    @abstractmethod
+    def present_bets(self, bets: list[tuple[int, int, float]]) -> None:
+        """Show the placed bets -- each an (id, target step count, prior win
+        probability) triple -- whose live probability is tracked as the game
+        plays out."""
+
+    @abstractmethod
+    def present_game_turn(self, turn: TurnResult) -> None:
+        """Animate one played turn: wait for the ride, then travel to the next
+        station."""
+
+    @abstractmethod
+    def present_game_state(self, game: GameOutputData) -> None:
+        """Present the finished game: the total wait and closing message."""
 
     @abstractmethod
     def clear_messages(self) -> None:
@@ -38,9 +66,7 @@ class GameOutputBoundry(ABC):
         """Show <stations> as the map the player is on."""
 
     @abstractmethod
-    def show_roads(
-        self, roads: list[tuple[tuple[int, int], tuple[int, int]]]
-    ) -> None:
+    def show_roads(self, roads: list[tuple[tuple[int, int], tuple[int, int]]]) -> None:
         """Draw the world's roads, each an ordered (from, to) coordinate pair."""
 
     @abstractmethod
@@ -60,8 +86,11 @@ class GameOutputBoundry(ABC):
         """Show or hide the animated waiting dots while waiting for trains."""
 
     @abstractmethod
-    def show_incoming_train(self, destination: Station, seconds: float) -> None:
-        """Depart the winning train toward <destination>, travelling <seconds>."""
+    def show_incoming_train(
+        self, destination: Station, seconds: float, wait_seconds: float
+    ) -> None:
+        """Depart the winning train toward <destination>, travelling <seconds>,
+        after <wait_seconds> spent waiting for it."""
 
     @abstractmethod
     def chime_arrival(self) -> None:

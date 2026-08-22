@@ -1,40 +1,26 @@
 from abc import ABC, abstractmethod
 
-from Entities import Station
+from Entities import GameInputData, GameOutputData, Player
 
 
 class GameInputBoundry(ABC):
     """An interface to decouple Adapter and Business logic."""
 
     @abstractmethod
-    def execute_new_game(
-        self,
-        name: str,
-        map_id: int,
-        rand_arrival: bool,
-    ) -> None:
-        """Orchestrate a single game on the map with id <map_id>."""
+    def execute(self, player: Player | None, inputData: GameInputData) -> None:
+        """Set up and run the full game described by <inputData>, presenting each
+        turn and the finished result. When gambling, its raw bet data is placed
+        before the game and settled against the outcome."""
 
     @abstractmethod
-    def execute_continue_game(self) -> None:
-        """Continue a pre-existing game or start a new one otherwise."""
-
-    @abstractmethod
-    def execute_restart(self) -> None:
-        """Replay the current game's map, name and random-arrival setting."""
-
-    @abstractmethod
-    def execute_quit_game(self) -> None:
-        """Quit the game."""
-
-    @abstractmethod
-    def get_world_stations(self) -> list[Station]:
-        """Return every station in the world."""
-
-    @abstractmethod
-    def get_world_roads(self) -> list[tuple[tuple[int, int], tuple[int, int]]]:
-        """Return each road as an ordered (from, to) pair of grid coordinates."""
+    def execute_restart(self) -> GameOutputData | None:
+        """Replay the last game with the same settings, or None if there was
+        none."""
 
     @abstractmethod
     def get_map_ids(self) -> list[int]:
         """Return the ids of every selectable map."""
+
+    @abstractmethod
+    def get_balance(self) -> float:
+        """Return the balance the next game's player bets with."""

@@ -1,6 +1,6 @@
 import numpy as np
 
-import Audio
+from Data import Audio
 from Entities import Station
 from Features.Simulation import SimulationOutputBoundry, SimulationViewModel
 

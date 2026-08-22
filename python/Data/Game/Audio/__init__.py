@@ -8,6 +8,9 @@ _SOUND_FILES = {
     "soft_ding": "soft_ding.wav",
     "error": "error.wav",
     "click": "click.wav",
+    "victory": "victory.wav",
+    "lose": "lose.wav",
+    "quit": "quit.wav",
 }
 
 _sounds: dict[str, "pygame.mixer.Sound"] = {}
