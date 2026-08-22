@@ -3,7 +3,7 @@ from typing import Callable
 
 import pygame
 
-import Audio
+from Data import Audio
 from Features.Simulation import (
     SimulationController,
     SimulationPresenter,
@@ -56,7 +56,7 @@ class SimulationView:
         self._screen = pygame.display.set_mode(
             (self._view_model.width, self._view_model.height)
         )
-        pygame.display.set_caption("Waiting-Sim")
+        pygame.display.set_caption("Thingamabob Simulator")
         self.keydown_loop()
 
     def keydown_loop(self) -> None:

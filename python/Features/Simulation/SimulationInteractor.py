@@ -1,4 +1,3 @@
-import math
 import time
 
 import numpy as np
@@ -8,7 +7,7 @@ from scipy.stats._distn_infrastructure import rv_frozen
 
 from Data import WorldDataAccessInterface
 from Entities import Player, Station, World
-from Entities.StepData import StepData
+from Entities.Game import StepData
 from Features.Simulation import SimulationOutputBoundry
 from Features.Simulation.SimulationInputBoundry import SimulationInputBoundry
 
@@ -34,6 +33,42 @@ class SimulationInteractor(SimulationInputBoundry):
         self._residual_pool = {}
         self._world = self._new_world()
 
+    def execute_simulation(self, trials: int, steps: int, map_id: int) -> None:
+        """Execute a new simulation on the map with id <map_id>."""
+        self._dao.load_map(map_id)
+        self._world = self._new_world()
+        spawn = self._spawn_station()
+
+        # self._presenter.clear_messages()
+        # self._presenter.say_executing_simulation(trials, steps)
+        # self._presenter.show_loading(True)
+        player = Player(name=SIMULATION_NAME, starting_station=spawn)
+
+        runtime_start = time.perf_counter()
+        sim_history = self._simulate(trials, steps, player, False)
+        rand_arrival_sim_history = self._simulate(trials, steps, player, True)
+        runtime_end = time.perf_counter()
+
+        # self._presenter.show_loading(False)
+        # self._presenter.say_done_trials()
+        # self._presenter.show_results(
+        #     self._get_simulation_output(
+        #         sim_history,
+        #         rand_arrival_sim_history,
+        #         steps,
+        #         spawn,
+        #         runtime_end - runtime_start,
+        #     )
+        # )
+
+        output = self._get_simulation_output(
+            sim_history,
+            rand_arrival_sim_history,
+            steps,
+            spawn,
+            runtime_end - runtime_start,
+        )
+
     def _instantiate_station(self, record: dict) -> Station:
         """Build a Station from the wait rules entry <record>."""
         station = Station(
@@ -56,7 +91,7 @@ class SimulationInteractor(SimulationInputBoundry):
         )
         return world
 
-    def _output_grid_data(
+    def _get_simulation_output(
         self,
         simulation_hist: list[list[StepData]],
         rand_arrival_sim_history: list[list[StepData]],
@@ -82,7 +117,7 @@ class SimulationInteractor(SimulationInputBoundry):
     def _expected_wait_times(self) -> dict[int, float]:
         """Return each station's expected wait time on the loaded map, keyed by
         station id, from the station's own rule."""
-        return {station.id: station.E_t() for station in self._world.get_stations()}
+        return {station.id: station.mean() for station in self._world.get_stations()}
 
     def _average_wait_time(
         self, simulation_hist: list[list[StepData]], steps: int
@@ -149,34 +184,6 @@ class SimulationInteractor(SimulationInputBoundry):
                 trial_history.append(self._step(rand_arrival, player, j, i))
             simulation_history.append(trial_history)
         return simulation_history
-
-    def execute_simulation(self, trials: int, steps: int, map_id: int) -> None:
-        """Execute a new simulation on the map with id <map_id>."""
-        self._dao.load_map(map_id)
-        self._world = self._new_world()
-        spawn = self._spawn_station()
-
-        self._presenter.clear_messages()
-        self._presenter.say_executing_simulation(trials, steps)
-        self._presenter.show_loading(True)
-        player = Player(name=SIMULATION_NAME, starting_station=spawn)
-
-        runtime_start = time.perf_counter()
-        sim_history = self._simulate(trials, steps, player, False)
-        rand_arrival_sim_history = self._simulate(trials, steps, player, True)
-        runtime_end = time.perf_counter()
-
-        self._presenter.show_loading(False)
-        self._presenter.say_done_trials()
-        self._presenter.show_results(
-            self._output_grid_data(
-                sim_history,
-                rand_arrival_sim_history,
-                steps,
-                spawn,
-                runtime_end - runtime_start,
-            )
-        )
 
     def get_map_ids(self) -> list[int]:
         """Return the ids of every selectable map."""
@@ -344,9 +351,7 @@ class SimulationInteractor(SimulationInputBoundry):
             rules = [neighbour.rule for neighbour in neighbours]
             for k, neighbour in enumerate(neighbours):
                 Q[index[neighbour.id], index[station_j.id]] = (
-                    self._probability_is_fastest(
-                        rules[k], rules[:k] + rules[k + 1 :]
-                    )
+                    self._probability_is_fastest(rules[k], rules[:k] + rules[k + 1 :])
                 )
 
         column_sums = Q.sum(axis=0)
