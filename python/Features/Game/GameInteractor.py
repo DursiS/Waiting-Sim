@@ -1,10 +1,5 @@
 import random
 from datetime import timedelta
-from typing import Any
-
-import numpy as np
-from scipy import integrate
-from scipy.stats import rv_frozen
 
 from Entities import (
     Bet,
@@ -168,7 +163,11 @@ class GameInteractor(GameInputBoundry):
         """Run one turn of the game, extending the walked path and reporting the
         updated probability of each bet."""
 
-        probabilities = {bet.id(): self._p(self._curr_path, bet) for bet in bets}
+        steps_taken = len(self._curr_path) - 1 if self._curr_path else 0
+        probabilities = {
+            bet.id(): self._p(bet.get_end_steps() - steps_taken, player.station)
+            for bet in bets
+        }
 
         wait_times = self._sample_neighbours(player, rand_arrival)
         t_waited, destination = self._fastest(wait_times)
@@ -307,56 +306,11 @@ class GameInteractor(GameInputBoundry):
             self._world.get_station_by_id(road.to_id())
             for road in self._world.roads_from(station)
         ]
-        # Future: Weight = probability of transitioning
+        # TODO: Weight = probability of transitioning
         weight = 1.0 / len(successors) if successors else 0.0
         result = sum(weight * self._p(remaining - 1, s) for s in successors)
         self._p_memo[key] = result
         return result
-
-    def _n_step_transition_matrix(
-        self, _from: Station, n: int = 1
-    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-        """Return the probability of being at <_to> within <n> steps
-        starting at <_from>."""
-        world_stations = self._world.get_stations()
-        size = len(world_stations)
-        index = {station.id: k for k, station in enumerate(world_stations)}
-        Q = np.zeros((size, size))
-
-        for station_j in world_stations:
-            neighbours = self._world.adjacent_stations(station_j)
-            rules = [neighbour.rule for neighbour in neighbours]
-            for k, neighbour in enumerate(neighbours):
-                Q[index[neighbour.id], index[station_j.id]] = (
-                    self._probability_is_fastest(rules[k], rules[:k] + rules[k + 1 :])
-                )
-
-        column_sums = Q.sum(axis=0)
-        column_sums[column_sums == 0] = 1.0
-        Q = Q / column_sums  # Normalization
-
-        return np.linalg.matrix_power(Q, n)
-
-    def _probability_is_fastest(
-        self, rule_j: rv_frozen, others: list[rv_frozen]
-    ) -> float:
-        """P(X_j < every rule in <others>) by conditioning on X_j = t,
-        then the survival probabilities multiply."""
-        if self._is_discrete(rule_j):
-            return float(
-                sum(
-                    rule_j.pmf(t) * np.prod([r.sf(t) for r in others])
-                    for t in self._discrete_support(rule_j)
-                )
-            )
-        lower, upper = self._continuous_bounds(rule_j)
-        return float(
-            integrate.quad(
-                lambda t: rule_j.pdf(t) * np.prod([r.sf(t) for r in others]),
-                lower,
-                upper,
-            )[0]
-        )
 
     def _create_bet(self, player: Player, amount: float, end_steps: int) -> Bet | None:
         """Build a bet on <end_steps>, or None if the stake or count is
@@ -365,14 +319,15 @@ class GameInteractor(GameInputBoundry):
             return None
         if end_steps <= 0:
             return None
-        return Bet(self._payoff_factor(end_steps), amount, end_steps)
+        return Bet(self._payoff_factor(end_steps, player), amount, end_steps)
 
     def _payoff_factor(self, end_steps: int, player: Player) -> float:
         """Return the profit multiple paid on a winning bet -- the fair odds
         shaved by the house edge -- so a stake returns stake * factor as profit
         on a win."""
-        p = self._p(end_steps, player, None)
-        fair_value = 1 / p
+        p = self._p(end_steps, player.station)
+        # TODO: remove later the if/else
+        fair_value = 1 / p if p != 0 else 1 / 2
         house_value = fair_value * HOUSE_DEFLATOR
         return house_value - 1
 
