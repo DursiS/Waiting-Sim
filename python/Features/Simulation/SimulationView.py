@@ -176,4 +176,5 @@ class SimulationView:
 
     def on_quit(self) -> None:
         """Action Listener to quit"""
+        Audio.play("click")
         self._running = False
