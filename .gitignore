@@ -5,3 +5,5 @@ __pycache__/
 *.spec
 python/Data/Game/player_data.json
 python/Data/Game/highscores.json
+TODO
+CLAUDE.md
