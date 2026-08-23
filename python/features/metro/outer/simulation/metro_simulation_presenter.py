@@ -2,16 +2,16 @@ import numpy as np
 
 from app import audio
 from features.metro.inner import Station
-from features.metro.inner import SimulationOutputBoundry
-from .simulation_view_model import SimulationViewModel
+from features.metro.inner import MetroSimulationOutputBoundry
+from .metro_simulation_view_model import MetroSimulationViewModel
 
 
-class SimulationPresenter(SimulationOutputBoundry):
+class MetroSimulationPresenter(MetroSimulationOutputBoundry):
     """Turns interactor output into updates on the simulation view model."""
 
-    view_model: SimulationViewModel
+    view_model: MetroSimulationViewModel
 
-    def __init__(self, view_model: SimulationViewModel) -> None:
+    def __init__(self, view_model: MetroSimulationViewModel) -> None:
         """Create a presenter feeding <view_model>."""
         self.view_model = view_model
 

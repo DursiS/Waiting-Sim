@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class SimulationOutputBoundry(ABC):
+class MetroSimulationOutputBoundry(ABC):
     """An output boundary the interactor uses to report simulation progress
     and results, decoupling business logic from the view."""
 

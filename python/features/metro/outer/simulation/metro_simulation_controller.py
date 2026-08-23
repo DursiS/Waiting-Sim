@@ -1,13 +1,13 @@
-from features.metro.inner import SimulationInteractor
+from features.metro.inner import MetroSimulationInteractor
 
 
-class SimulationController:
+class MetroSimulationController:
     """Broad Controller accordingly to CA to convert user input into
     interactor calls."""
 
-    input_boundry: SimulationInteractor
+    input_boundry: MetroSimulationInteractor
 
-    def __init__(self, input_boundry: SimulationInteractor) -> None:
+    def __init__(self, input_boundry: MetroSimulationInteractor) -> None:
         self.input_boundry = input_boundry
 
     def handle_simulation(

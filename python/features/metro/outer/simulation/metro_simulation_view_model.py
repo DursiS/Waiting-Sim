@@ -39,7 +39,7 @@ DEFAULT_CELLS = {
 }
 
 
-class SimulationViewModel:
+class MetroSimulationViewModel:
     """A grid of scalar simulation metrics above full-width matrix panels,
     with a live side text block of presenter messages."""
 

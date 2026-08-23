@@ -10,25 +10,25 @@ from .player import Player
 from .station import Station
 from .world import World
 from .step_data import StepData
-from .simulation_output_boundry import SimulationOutputBoundry
-from .simulation_input_boundry import SimulationInputBoundry
+from .metro_simulation_output_boundry import MetroSimulationOutputBoundry
+from .metro_simulation_input_boundry import MetroSimulationInputBoundry
 
 SIMULATION_NAME = "SIMULATION"
 RESIDUAL_BATCH_SIZE = 8192
 MAX_MATRIX_SIZE = 8
 
 
-class SimulationInteractor(SimulationInputBoundry):
+class MetroSimulationInteractor(MetroSimulationInputBoundry):
     """Orchestrates simulation business logic."""
 
     _dao: WorldDataAccessInterface
-    _presenter: SimulationOutputBoundry
+    _presenter: MetroSimulationOutputBoundry
     _residual_pool: dict[tuple, list[float]]
 
     def __init__(
-        self, dao: WorldDataAccessInterface, presenter: SimulationOutputBoundry
+        self, dao: WorldDataAccessInterface, presenter: MetroSimulationOutputBoundry
     ) -> None:
-        """Create a SimulationInteractor using <dao> for wait rule data and
+        """Create a MetroSimulationInteractor using <dao> for wait rule data and
         <presenter> to report simulation results."""
         self._dao = dao
         self._presenter = presenter

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class SimulationInputBoundry(ABC):
+class MetroSimulationInputBoundry(ABC):
     """An input boundry between Game Interactor and Controller."""
 
     @abstractmethod

@@ -6,7 +6,7 @@ import pygame
 from app import audio
 from app.volume_slider import VolumeSlider
 from features.metro.outer.play import MetroView
-from features.metro.outer.simulation import SimulationView
+from features.metro.outer.simulation import MetroSimulationView
 
 
 ICON_PATH = os.path.join(os.path.dirname(__file__), "test.jpg")
@@ -104,7 +104,7 @@ class ViewFacade:
     def __init__(
         self,
         metro_view_factory: Callable[[], MetroView],
-        simulation_view_factory: Callable[[], SimulationView],
+        simulation_view_factory: Callable[[], MetroSimulationView],
         flying_view_factory: Callable[[], object],
     ) -> None:
         self._games = [

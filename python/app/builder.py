@@ -7,12 +7,12 @@ from features.metro.outer.play import (
     MetroView,
     MetroViewModel,
 )
-from features.metro.inner import SimulationInteractor
+from features.metro.inner import MetroSimulationInteractor
 from features.metro.outer.simulation import (
-    SimulationController,
-    SimulationPresenter,
-    SimulationView,
-    SimulationViewModel,
+    MetroSimulationController,
+    MetroSimulationPresenter,
+    MetroSimulationView,
+    MetroSimulationViewModel,
 )
 from features.flying.outer import (
     FlyingController,
@@ -63,16 +63,16 @@ class WaitingSimulatorBuilder:
         )
         return metro_view
 
-    def build_simulation(self) -> SimulationView:
-        """Build a new SimulationView."""
-        sim_view_model = SimulationViewModel()
-        sim_presenter = SimulationPresenter(sim_view_model)
-        sim_interactor = SimulationInteractor(
+    def build_simulation(self) -> MetroSimulationView:
+        """Build a new MetroSimulationView."""
+        sim_view_model = MetroSimulationViewModel()
+        sim_presenter = MetroSimulationPresenter(sim_view_model)
+        sim_interactor = MetroSimulationInteractor(
             dao=WorldDataAccess(),
             presenter=sim_presenter,
         )
-        sim_controller = SimulationController(sim_interactor)
-        simulation_view = SimulationView(
+        sim_controller = MetroSimulationController(sim_interactor)
+        simulation_view = MetroSimulationView(
             controller=sim_controller,
             presenter=sim_presenter,
             interactor=sim_interactor,

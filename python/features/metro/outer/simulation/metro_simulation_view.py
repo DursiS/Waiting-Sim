@@ -4,23 +4,23 @@ from typing import Callable
 import pygame
 
 from app import audio
-from .simulation_controller import SimulationController
-from .simulation_presenter import SimulationPresenter
-from .simulation_view_model import SimulationViewModel
-from features.metro.inner import SimulationInteractor
+from .metro_simulation_controller import MetroSimulationController
+from .metro_simulation_presenter import MetroSimulationPresenter
+from .metro_simulation_view_model import MetroSimulationViewModel
+from features.metro.inner import MetroSimulationInteractor
 
 
 INPUT_BG_COLOR = (0, 0, 0)
 INPUT_TEXT_COLOR = (255, 255, 255)
 
 
-class SimulationView:
+class MetroSimulationView:
     """The view of the simulation feature to hold its GUI logic."""
 
-    _controller: SimulationController
-    _presenter: SimulationPresenter
-    _interactor: SimulationInteractor
-    _view_model: SimulationViewModel
+    _controller: MetroSimulationController
+    _presenter: MetroSimulationPresenter
+    _interactor: MetroSimulationInteractor
+    _view_model: MetroSimulationViewModel
     _running: bool
     _busy: bool
     _input_mode: str | None
@@ -32,10 +32,10 @@ class SimulationView:
 
     def __init__(
         self,
-        controller: SimulationController,
-        presenter: SimulationPresenter,
-        interactor: SimulationInteractor,
-        view_model: SimulationViewModel,
+        controller: MetroSimulationController,
+        presenter: MetroSimulationPresenter,
+        interactor: MetroSimulationInteractor,
+        view_model: MetroSimulationViewModel,
     ) -> None:
         self._controller = controller
         self._presenter = presenter

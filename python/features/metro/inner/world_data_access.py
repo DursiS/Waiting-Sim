@@ -9,7 +9,7 @@ from scipy.stats._distn_infrastructure import rv_frozen
 from .station import Station
 from .world_data_access_interface import WorldDataAccessInterface
 
-DATA_DIR = os.path.dirname(__file__)
+DATA_DIR = os.path.join(os.path.dirname(__file__), os.pardir, "outer")
 PLAYER_DATA_PATH = os.path.join(DATA_DIR, "player_data.json")
 WORLDS_DATA_PATH = os.path.join(DATA_DIR, "worlds.json")
 HIGHSCORES_PATH = os.path.join(DATA_DIR, "highscores.json")

@@ -3,7 +3,7 @@ __pycache__/
 /build/
 /dist/
 *.spec
-python/features/metro/inner/player_data.json
-python/features/metro/inner/highscores.json
+python/features/metro/outer/player_data.json
+python/features/metro/outer/highscores.json
 TODO
 CLAUDE.md
