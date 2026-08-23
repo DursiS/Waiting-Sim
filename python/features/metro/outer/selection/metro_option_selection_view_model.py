@@ -41,8 +41,7 @@ FIELDS = {
     "gamble": [
         ("name", "text", "Name"),
         ("map", "map", "Map"),
-        ("bet_low", "text", "Bet from (steps)"),
-        ("bet_high", "text", "Bet to (steps)"),
+        ("bet_range", "range", "Bet interval (steps)"),
         ("bet_stake", "text", "Stake"),
         ("rand_arrival", "toggle", "Random arrival"),
         ("animate", "toggle", "Animate"),
@@ -74,11 +73,13 @@ class MetroOptionSelectionViewModel:
     trials: str
     focused: str | None
     error: str
+    balance: float
 
-    def __init__(self, map_ids: list[int]) -> None:
+    def __init__(self, map_ids: list[int], balance: float) -> None:
         self.width = WIDTH
         self.height = HEIGHT
         self.map_ids = map_ids
+        self.balance = balance
         self.mode = "play"
         self.name = ""
         self.map_id = map_ids[-1] if map_ids else 0
@@ -186,6 +187,11 @@ class MetroOptionSelectionViewModel:
                     self._map_rects[map_id] = pygame.Rect(
                         ctrl_x + j * 56, row_y, 46, 36
                     )
+            elif kind == "range":
+                self._field_rects["bet_low"] = pygame.Rect(ctrl_x, row_y, 104, 36)
+                self._field_rects["bet_high"] = pygame.Rect(
+                    ctrl_x + 138, row_y, 104, 36
+                )
             row_y += 52
 
         self._start_rect = pygame.Rect((WIDTH - 220) // 2, HEIGHT - 90, 220, 50)
@@ -223,6 +229,12 @@ class MetroOptionSelectionViewModel:
         for key, kind, label in FIELDS[self.mode]:
             self._draw_field(screen, key, kind, label)
 
+        if self.mode == "gamble":
+            money = self._font_label.render(
+                f"Balance: ${self.balance:.2f}", True, TITLE_COLOR
+            )
+            screen.blit(money, money.get_rect(topright=(WIDTH - 24, 22)))
+
         if self.error:
             error = self._font_err.render(self.error, True, ERROR_COLOR)
             screen.blit(
@@ -246,22 +258,23 @@ class MetroOptionSelectionViewModel:
         """Render one labelled field row for <key> of the given <kind>."""
         if kind == "map":
             row_rect = next(iter(self._map_rects.values()))
+        elif kind == "range":
+            row_rect = self._field_rects["bet_low"]
         else:
             row_rect = self._field_rects[key]
         text = self._font_label.render(label, True, LABEL_COLOR)
         screen.blit(text, text.get_rect(midleft=(self._panel.left + 26, row_rect.centery)))
 
         if kind == "text":
-            rect = self._field_rects[key]
-            focused = self.focused == key
-            pygame.draw.rect(screen, FIELD_BG_COLOR, rect, border_radius=6)
-            pygame.draw.rect(
-                screen, FIELD_FOCUS_COLOR if focused else FIELD_BORDER_COLOR, rect,
-                width=2, border_radius=6,
-            )
-            shown = self.text_value(key) + ("_" if focused else "")
-            value = self._font_val.render(shown, True, FIELD_TEXT_COLOR)
-            screen.blit(value, value.get_rect(midleft=(rect.left + 10, rect.centery)))
+            self._draw_text_box(screen, key)
+        elif kind == "range":
+            self._draw_text_box(screen, "bet_low")
+            self._draw_text_box(screen, "bet_high")
+            dash = self._font_val.render("-", True, LABEL_COLOR)
+            mid_x = (
+                self._field_rects["bet_low"].right + self._field_rects["bet_high"].left
+            ) // 2
+            screen.blit(dash, dash.get_rect(center=(mid_x, row_rect.centery)))
         elif kind == "toggle":
             rect = self._field_rects[key]
             on = self.toggle_value(key)
@@ -284,3 +297,16 @@ class MetroOptionSelectionViewModel:
                 )
                 value = self._font_val.render(str(map_id), True, FIELD_TEXT_COLOR)
                 screen.blit(value, value.get_rect(center=rect.center))
+
+    def _draw_text_box(self, screen: pygame.Surface, key: str) -> None:
+        """Render the text field <key> with its value and focus outline."""
+        rect = self._field_rects[key]
+        focused = self.focused == key
+        pygame.draw.rect(screen, FIELD_BG_COLOR, rect, border_radius=6)
+        pygame.draw.rect(
+            screen, FIELD_FOCUS_COLOR if focused else FIELD_BORDER_COLOR, rect,
+            width=2, border_radius=6,
+        )
+        shown = self.text_value(key) + ("_" if focused else "")
+        value = self._font_val.render(shown, True, FIELD_TEXT_COLOR)
+        screen.blit(value, value.get_rect(midleft=(rect.left + 10, rect.centery)))
