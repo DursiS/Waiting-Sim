@@ -1,0 +1,150 @@
+from abc import ABC, abstractmethod
+from datetime import timedelta
+
+from .metro_output_data import MetroOutputData
+from .station import Station
+from .turn_result import TurnResult
+
+
+class MetroOutputBoundry(ABC):
+    """An interface to decouple Adapter and Business logic."""
+
+    @abstractmethod
+    def present_game_setup(
+        self,
+        stations: list[Station],
+        roads: list[tuple[tuple[int, int], tuple[int, int]]],
+        spawn: Station,
+        gamble: bool,
+        animate: bool,
+    ) -> None:
+        """Show the map and reset the HUD for a fresh game, remembering whether
+        to animate turns."""
+
+    @abstractmethod
+    def present_bets(self, bets: list[tuple[int, int, float]]) -> None:
+        """Show the placed bets -- each an (id, target step count, prior win
+        probability) triple -- whose live probability is tracked as the game
+        plays out."""
+
+    @abstractmethod
+    def present_game_turn(self, turn: TurnResult) -> None:
+        """Animate one played turn: wait for the ride, then travel to the next
+        station."""
+
+    @abstractmethod
+    def present_game_state(self, game: MetroOutputData) -> None:
+        """Present the finished game: the total wait and closing message."""
+
+    @abstractmethod
+    def clear_messages(self) -> None:
+        """Clear the running turn messages before a new turn."""
+
+    @abstractmethod
+    def clear_wait_stats(self) -> None:
+        """Clear the wait-statistics header before a new game."""
+
+    @abstractmethod
+    def show_station_expectations(
+        self, station_stats: list[tuple[str, float, float]]
+    ) -> None:
+        """Add each station's expected wait time with error bars."""
+
+    @abstractmethod
+    def show_map_expectation(self, expectation: float, std_dev: float) -> None:
+        """Add the map's total expected wait time with error bars."""
+
+    @abstractmethod
+    def show_station_risks(self, station_risks: list[tuple[str, float]]) -> None:
+        """Add each station's 95th-percentile risk wait time."""
+
+    @abstractmethod
+    def show_map_risk(self, risk: float) -> None:
+        """Add the map's 95th-percentile risk wait time."""
+
+    @abstractmethod
+    def show_stations(self, stations: list[Station]) -> None:
+        """Show <stations> as the map the player is on."""
+
+    @abstractmethod
+    def show_roads(self, roads: list[tuple[tuple[int, int], tuple[int, int]]]) -> None:
+        """Draw the world's roads, each an ordered (from, to) coordinate pair."""
+
+    @abstractmethod
+    def show_player_station(self, station: Station) -> None:
+        """Highlight <station> as the player's current location."""
+
+    @abstractmethod
+    def show_total_wait(self, total_wait: float) -> None:
+        """Show the player's cumulative wait time so far."""
+
+    @abstractmethod
+    def show_best_highscore(self, best: dict | None) -> None:
+        """Show the current map's best highscore, or N/A if there is none."""
+
+    @abstractmethod
+    def show_loading(self, loading: bool) -> None:
+        """Show or hide the animated waiting dots while waiting for trains."""
+
+    @abstractmethod
+    def show_incoming_train(
+        self, destination: Station, seconds: float, wait_seconds: float
+    ) -> None:
+        """Depart the winning train toward <destination>, travelling <seconds>,
+        after <wait_seconds> spent waiting for it."""
+
+    @abstractmethod
+    def chime_arrival(self) -> None:
+        """Sound a soft chime as the player arrives at a station mid-game."""
+
+    @abstractmethod
+    def show_game_over(self, game_over: bool) -> None:
+        """Clear the turn HUD and show only the closing message, or resume."""
+
+    @abstractmethod
+    def say_reached_end(self, total_wait: float) -> None:
+        """Announce the player reached the end after <total_wait> seconds."""
+
+    @abstractmethod
+    def say_already_finished(self) -> None:
+        """Tell the player this game is over, so there is nothing to continue."""
+
+    @abstractmethod
+    def say_expected_times(self, expected_times: list[tuple[str, float]]) -> None:
+        """Add a message describing the expected wait time to each neighbour."""
+
+    @abstractmethod
+    def say_time_waited(self, t_waited: timedelta, destination: str) -> None:
+        """Add a message describing how long the player waited."""
+
+    @abstractmethod
+    def say_travelling(self, t_travel: timedelta, destination: str) -> None:
+        """Add a message describing how long the ride to <destination> takes."""
+
+    @abstractmethod
+    def say_percentile_wait(self) -> None:
+        """Add a message flagging a wait that landed in the 95th percentile."""
+
+    @abstractmethod
+    def say_sequenced_wait_times(self, wait_times: list[tuple[str, float]]) -> None:
+        """Add a message describing the sampled wait time to each neighbour."""
+
+    @abstractmethod
+    def say_waiting(self) -> None:
+        """Add a message telling the user their ride is on its way."""
+
+    @abstractmethod
+    def prompt_to_continue(self) -> None:
+        """Add a message prompting the user to continue."""
+
+    @abstractmethod
+    def say_quitting_game(self) -> None:
+        """Add a message telling the user the game is quitting."""
+
+    @abstractmethod
+    def say_explanation(self) -> None:
+        """Add the new-game explanation of how to play and the goal."""
+
+    @abstractmethod
+    def say_no_save(self) -> None:
+        """Add a message telling the user there is no save to continue from."""
