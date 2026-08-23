@@ -1,11 +1,17 @@
 from app.view_facade import ViewFacade
 from features.metro.inner import WorldDataAccess
 from features.metro.inner import MetroInteractor
+from features.metro.inner import MetroInputData
 from features.metro.outer.play import (
     MetroController,
     MetroPresenter,
     MetroView,
     MetroViewModel,
+)
+from features.metro.outer.selection import (
+    MetroOptionSelectionController,
+    MetroOptionSelectionView,
+    MetroOptionSelectionViewModel,
 )
 from features.metro.inner import MetroSimulationInteractor
 from features.metro.outer.simulation import (
@@ -31,8 +37,7 @@ class WaitingSimulatorBuilder:
 
     def __init__(self) -> None:
         self.view_facade = ViewFacade(
-            metro_view_factory=self.build_metro,
-            simulation_view_factory=self.build_simulation,
+            metro_view_factory=self.build_metro_option_selection,
             flying_view_factory=self.build_flying,
         )
 
@@ -46,8 +51,19 @@ class WaitingSimulatorBuilder:
             view_model=flying_view_model,
         )
 
-    def build_metro(self) -> MetroView:
-        """Build a new MetroView; it fills the map itself when a game starts."""
+    def build_metro_option_selection(self) -> MetroOptionSelectionView:
+        """Build the Metro entry screen where the player picks a mode and inputs,
+        then launches the chosen game with that request."""
+        view_model = MetroOptionSelectionViewModel(WorldDataAccess().map_ids())
+        controller = MetroOptionSelectionController()
+        return MetroOptionSelectionView(
+            controller=controller,
+            view_model=view_model,
+            play_view_factory=self.build_metro_play,
+        )
+
+    def build_metro_play(self, request: MetroInputData) -> MetroView:
+        """Build a MetroView that immediately plays out <request>."""
         metro_view_model = MetroViewModel()
         metro_presenter = MetroPresenter(metro_view_model)
         metro_interactor = MetroInteractor(
@@ -55,13 +71,13 @@ class WaitingSimulatorBuilder:
             presenter=metro_presenter,
         )
         metro_controller = MetroController(metro_interactor)
-        metro_view = MetroView(
+        return MetroView(
+            request=request,
             controller=metro_controller,
             presenter=metro_presenter,
             interactor=metro_interactor,
             view_model=metro_view_model,
         )
-        return metro_view
 
     def build_simulation(self) -> MetroSimulationView:
         """Build a new MetroSimulationView."""
@@ -72,10 +88,9 @@ class WaitingSimulatorBuilder:
             presenter=sim_presenter,
         )
         sim_controller = MetroSimulationController(sim_interactor)
-        simulation_view = MetroSimulationView(
+        return MetroSimulationView(
             controller=sim_controller,
             presenter=sim_presenter,
             interactor=sim_interactor,
             view_model=sim_view_model,
         )
-        return simulation_view

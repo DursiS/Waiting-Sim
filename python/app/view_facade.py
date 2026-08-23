@@ -5,8 +5,6 @@ import pygame
 
 from app import audio
 from app.volume_slider import VolumeSlider
-from features.metro.outer.play import MetroView
-from features.metro.outer.simulation import MetroSimulationView
 
 
 ICON_PATH = os.path.join(os.path.dirname(__file__), "test.jpg")
@@ -93,7 +91,6 @@ class ViewFacade:
     view models."""
 
     _games: list[tuple[str, Callable[[], object]]]
-    _simulations: list[tuple[str, Callable[[], object]]]
     _busy: bool
     _running: bool
     _page: str
@@ -103,16 +100,11 @@ class ViewFacade:
 
     def __init__(
         self,
-        metro_view_factory: Callable[[], MetroView],
-        simulation_view_factory: Callable[[], MetroSimulationView],
+        metro_view_factory: Callable[[], object],
         flying_view_factory: Callable[[], object],
     ) -> None:
         self._games = [
             ("Metro", metro_view_factory),
-            ("Flying", flying_view_factory),
-        ]
-        self._simulations = [
-            ("Metro", simulation_view_factory),
             ("Flying", flying_view_factory),
         ]
         self._busy = False
@@ -121,7 +113,6 @@ class ViewFacade:
         self._key_observers = {
             pygame.K_q: self.on_quit,
             pygame.K_g: self.on_game,
-            pygame.K_s: self.on_simulation,
             pygame.K_a: self.on_about,
         }
 
@@ -194,7 +185,7 @@ class ViewFacade:
                     if (
                         event.type == pygame.MOUSEBUTTONDOWN
                         and event.button == 1
-                        and self._page in ("games", "simulations")
+                        and self._page == "games"
                     ):
                         self._handle_selection_click(event.pos)
                     if self._page == "menu":
@@ -213,7 +204,7 @@ class ViewFacade:
             if observer is not None:
                 audio.play("click")
                 observer()
-        elif self._page in ("games", "simulations"):
+        elif self._page == "games":
             if event.key == pygame.K_q:
                 audio.play("click")
                 self.on_quit()
@@ -239,8 +230,6 @@ class ViewFacade:
             self._draw_about()
         elif self._page == "games":
             self._draw_selection("Thingamabob Selection", self._games)
-        elif self._page == "simulations":
-            self._draw_selection("Simulation Selection", self._simulations)
         else:
             self._draw_menu()
 
@@ -297,7 +286,7 @@ class ViewFacade:
 
         prompt_font = pygame.font.SysFont(None, 30)
         prompt = prompt_font.render(
-            "G Thingamabobs   S Simulation   A About   Q Quit",
+            "G Thingamabobs   A About   Q Quit",
             True,
             PROMPT_COLOR,
         )
@@ -346,7 +335,7 @@ class ViewFacade:
 
     def _selection_options(self) -> list[tuple[str, Callable[[], object]]]:
         """Return the option list for the current selection page."""
-        return self._games if self._page == "games" else self._simulations
+        return self._games
 
     def _handle_selection_click(self, pos: tuple[int, int]) -> None:
         """Launch the feature whose button was clicked, if any."""
@@ -396,8 +385,3 @@ class ViewFacade:
     def on_game(self) -> None:
         """Action Listener to open the game selection page, a button per game."""
         self._page = "games"
-
-    def on_simulation(self) -> None:
-        """Action Listener to open the simulation selection page, a button per
-        simulation."""
-        self._page = "simulations"
