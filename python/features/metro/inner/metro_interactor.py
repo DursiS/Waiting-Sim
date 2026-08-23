@@ -6,6 +6,7 @@ from .bet_log import BetLog
 from .metro_input_data import MetroInputData
 from .metro_output_data import MetroOutputData
 from .station import Station
+from .transition import Transition
 from .world import World
 from .player import Player
 from .line import Line
@@ -32,6 +33,7 @@ class MetroInteractor(MetroInputBoundry):
     _curr_path: list[int]
     _all_paths: list[tuple[int, ...]] | None
     _p_memo: dict[tuple[int, int], float]
+    _transition: Transition
 
     def __init__(
         self, dao: WorldDataAccessInterface, presenter: MetroOutputBoundry
@@ -96,6 +98,7 @@ class MetroInteractor(MetroInputBoundry):
 
         phase_id, bets = -1, ()
         if gamble:
+            self._transition = Transition(self._world)
             phase_id = self._log.new_betting_phase()
             self._load_bets(phase_id, raw_bets)
             self._log.complete_phase(phase_id)
@@ -113,7 +116,7 @@ class MetroInteractor(MetroInputBoundry):
                 (
                     bet.id(),
                     bet.get_end_steps(),
-                    self._p(bet.get_end_steps(), player.station),
+                    self._p_bet(bet.get_end_steps(), player.station),
                 )
                 for bet in bets
             ]
@@ -164,13 +167,13 @@ class MetroInteractor(MetroInputBoundry):
 
         steps_taken = len(self._curr_path) - 1 if self._curr_path else 0
         probabilities = {
-            bet.id(): self._p(bet.get_end_steps() - steps_taken, player.station)
+            bet.id(): self._p_bet(bet.get_end_steps() - steps_taken, player.station)
             for bet in bets
         }
 
         wait_times = self._sample_neighbours(player, rand_arrival)
-        t_waited, destination = self._fastest(wait_times)
-        t_travel = self._time_spent_traveling(player, destination)
+        t_waited, destination = self._get_fastest_destination(wait_times)
+        t_travel = self._get_time_spent_traveling(player, destination)
 
         _from = player.station
         player.move(self._instantiate_station(self._dao.get_record(destination.id)))
@@ -260,40 +263,37 @@ class MetroInteractor(MetroInputBoundry):
         )
         return [neighbor.id for neighbor in self._world.adjacent_stations(station)]
 
+    def _get_fastest_destination(
+        self, wait_times: list[tuple[Station, float]]
+    ) -> tuple[timedelta, Station]:
+        """Return the shortest ride as a (wait, destination station) pair."""
+        destination, seconds = min(wait_times, key=lambda pair: pair[1])
+        return timedelta(seconds=seconds), destination
+
+    def _get_time_spent_traveling(
+        self, player: Player, destination: Station
+    ) -> timedelta:
+        """Return the time in seconds spent travelling from the player's
+        current station to their destination."""
+        roads_from = self._world.roads_from(player.station)
+        for road in roads_from:
+            if road.to_id() == destination.id:
+                s = road.length * LENGTH_TRAVEL_FACTOR
+                return timedelta(seconds=s)
+        return timedelta(seconds=1)
+
     # ========
-    # Gambling
+    # Bet Handling
     # ========
 
-    # def _paths(self, station: Station) -> list[tuple[int, ...]]:
-    #     """Return every directed path from <station> to the end of the currently
-    #     loaded world, each a tuple of station ids. Follows the one-way roads, so
-    #     an acyclic map yields a finite set of paths."""
-    #     if station.end:
-    #         return [(station.id,)]
-    #     paths = []
-    #     for road in self._world.roads_from(station):
-    #         neighbour = self._world.get_station_by_id(road.to_id())
-    #         for tail in self._paths(neighbour):
-    #             paths.append((station.id,) + tail)
-    #     return paths
-    #
-    # def _conditioned_paths(
-    #     self, total_paths: list[tuple[int, ...]], curr_path: list[int]
-    # ) -> list[tuple[int, ...]]:
-    #     """Return the paths from <total_paths> consistent with the walk so far
-    #     -- those that keep <curr_path> as a prefix."""
-    #     prefix = tuple(curr_path)
-    #     depth = len(prefix)
-    #     return [path for path in total_paths if tuple(path[:depth]) == prefix]
-
-    def _p(self, remaining: int, station: Station) -> float:
+    def _p_bet(self, remaining: int, station: Station) -> float:
         """Return the probability of reaching the end in exactly <remaining> more
         steps from <station>, as a random walk over the outgoing roads.
 
         Each branch is weighted by its transition probability (uniform for now),
-        so paths that share a prefix are not over-counted -- they are not
+        so paths that share a prefix are not over-counted, they are not
         independent. Base case: standing on the end wins with 0 steps left. The
-        result depends only on the map, so it is memoised for the game."""
+        result depends only on the map, so it is memorised for the game."""
         if station.end:
             return 1.0 if remaining == 0 else 0.0
         if remaining <= 0:
@@ -305,9 +305,12 @@ class MetroInteractor(MetroInputBoundry):
             self._world.get_station_by_id(road.to_id())
             for road in self._world.roads_from(station)
         ]
-        # TODO: Weight = probability of transitioning
-        weight = 1.0 / len(successors) if successors else 0.0
-        result = sum(weight * self._p(remaining - 1, s) for s in successors)
+
+        weights = [self._transition.p_from_to(station, s) for s in successors]
+        result = sum(
+            weights[i] * self._p_bet(remaining - 1, successors[i])
+            for i in range(len(successors))
+        )
         self._p_memo[key] = result
         return result
 
@@ -324,96 +327,72 @@ class MetroInteractor(MetroInputBoundry):
         """Return the profit multiple paid on a winning bet -- the fair odds
         shaved by the house edge -- so a stake returns stake * factor as profit
         on a win."""
-        p = self._p(end_steps, player.station)
+        p = self._p_bet(end_steps, player.station)
         # TODO: remove later the if/else
         fair_value = 1 / p if p != 0 else 1 / 2
         house_value = fair_value * HOUSE_DEFLATOR
         return house_value - 1
 
-    def _fastest(
-        self, wait_times: list[tuple[Station, float]]
-    ) -> tuple[timedelta, Station]:
-        """Return the shortest ride as a (wait, destination station) pair."""
-        destination, seconds = min(wait_times, key=lambda pair: pair[1])
-        return timedelta(seconds=seconds), destination
+    # def _best_highscore(self, rand_arrival: bool) -> dict | None:
+    #     """Return the lowest-time completion of the current map for the given
+    #     random-arrival setting, or None."""
+    #     highscores = self._dao.get_highscores(self._dao.current_map_id(), rand_arrival)
+    #     return min(highscores, key=lambda entry: entry["time"]) if highscores else None
 
-    def _time_spent_traveling(self, player: Player, destination: Station) -> timedelta:
-        """Return the time in seconds spent travelling from the player's
-        current station to their destination."""
-        roads_from = self._world.roads_from(player.station)
-        for road in roads_from:
-            if road.to_id() == destination.id:
-                s = road.length * LENGTH_TRAVEL_FACTOR
-                return timedelta(seconds=s)
-        return timedelta(seconds=1)
+    # def _station_expectations(self) -> list[tuple[str, float, float]]:
+    #     """Return the name, expected wait and std dev of every station."""
+    #     return [
+    #         (
+    #             record["name"],
+    #             self._dao.get_expectation(record["id"]),
+    #             self._dao.get_std_dev(record["id"]),
+    #         )
+    #         for record in self._dao.get_records()
+    #     ]
 
-    def _best_highscore(self, rand_arrival: bool) -> dict | None:
-        """Return the lowest-time completion of the current map for the given
-        random-arrival setting, or None."""
-        highscores = self._dao.get_highscores(self._dao.current_map_id(), rand_arrival)
-        return min(highscores, key=lambda entry: entry["time"]) if highscores else None
-
-    def _save_player(self, player: Player, rand_arrival: bool) -> None:
-        """Persist <player> with their map and random-arrival choice."""
-        data = player.convert_to_data()
-        data["map_id"] = self._dao.current_map_id()
-        data["rand_arrival"] = rand_arrival
-        self._dao.save_player(data)
-
-    def _station_expectations(self) -> list[tuple[str, float, float]]:
-        """Return the name, expected wait and std dev of every station."""
-        return [
-            (
-                record["name"],
-                self._dao.get_expectation(record["id"]),
-                self._dao.get_std_dev(record["id"]),
-            )
-            for record in self._dao.get_records()
-        ]
-
-    # =========
-    # Computers
-    # =========
-
-    def _compute_map_ev(self) -> tuple[float, float]:
-        """Return the map's total expected wait and the std dev of that total.
-
-        Stations are treated as independent, so the variance of the total is
-        the sum of variances and its std dev is the root of that sum."""
-        total_expectation = 0.0
-        total_variance = 0.0
-        for record in self._dao.get_records():
-            total_expectation += self._dao.get_expectation(record["id"])
-            total_variance += self._dao.get_std_dev(record["id"]) ** 2
-        return total_expectation, total_variance**0.5
-
-    def _compute_risks(self) -> list[tuple[str, float]]:
-        """Return the name and 95th-percentile risk wait of every station."""
-
-        def f(station_id):
-            """Return the risk of one station"""
-            return self._dao.get_expectation(station_id) + Z_95 * self._dao.get_std_dev(
-                station_id
-            )
-
-        return [(record["name"], f(record["id"])) for record in self._dao.get_records()]
-
-    def _compute_map_risk(self) -> float:
-        """Return the map's 95th-percentile risk wait time for the total."""
-        total_expectation, total_std_dev = self._compute_map_ev()
-        return total_expectation + Z_95 * total_std_dev
-
-    def _compute_neighbour_evs(
-        self, player: Player, rand_arrival: bool
-    ) -> list[tuple[Station, float]]:
-        """Return each adjacent station paired with its expected ride time."""
-        result = []
-        for neighbour in self._world.adjacent_stations(player.station):
-            expectation = self._dao.get_expectation(neighbour.id)
-            if rand_arrival:
-                expectation -= random.uniform(0, expectation) / 2
-            result.append((neighbour, expectation))
-        return result
+    # # =========
+    # # Computers
+    # # =========
+    #
+    # def _compute_map_ev(self) -> tuple[float, float]:
+    #     """Return the map's total expected wait and the std dev of that total.
+    #
+    #     Stations are treated as independent, so the variance of the total is
+    #     the sum of variances and its std dev is the root of that sum."""
+    #     total_expectation = 0.0
+    #     total_variance = 0.0
+    #     for record in self._dao.get_records():
+    #         total_expectation += self._dao.get_expectation(record["id"])
+    #         total_variance += self._dao.get_std_dev(record["id"]) ** 2
+    #     return total_expectation, total_variance**0.5
+    #
+    # def _compute_risks(self) -> list[tuple[str, float]]:
+    #     """Return the name and 95th-percentile risk wait of every station."""
+    #
+    #     def f(station_id):
+    #         """Return the risk of one station"""
+    #         return self._dao.get_expectation(station_id) + Z_95 * self._dao.get_std_dev(
+    #             station_id
+    #         )
+    #
+    #     return [(record["name"], f(record["id"])) for record in self._dao.get_records()]
+    #
+    # def _compute_map_risk(self) -> float:
+    #     """Return the map's 95th-percentile risk wait time for the total."""
+    #     total_expectation, total_std_dev = self._compute_map_ev()
+    #     return total_expectation + Z_95 * total_std_dev
+    #
+    # def _compute_neighbour_evs(
+    #     self, player: Player, rand_arrival: bool
+    # ) -> list[tuple[Station, float]]:
+    #     """Return each adjacent station paired with its expected ride time."""
+    #     result = []
+    #     for neighbour in self._world.adjacent_stations(player.station):
+    #         expectation = self._dao.get_expectation(neighbour.id)
+    #         if rand_arrival:
+    #             expectation -= random.uniform(0, expectation) / 2
+    #         result.append((neighbour, expectation))
+    #     return result
 
     # =======
     # Loaders
@@ -457,7 +436,7 @@ class MetroInteractor(MetroInputBoundry):
                     self._log.add_bet(phase_id, bet)
 
     # =====
-    # idk
+    # Misc.
     # =====
 
     def _sample_neighbours(
@@ -475,3 +454,10 @@ class MetroInteractor(MetroInputBoundry):
                 seconds -= arrival
             result.append((neighbour, seconds))
         return result
+
+    def _save_player(self, player: Player, rand_arrival: bool) -> None:
+        """Persist <player> with their map and random-arrival choice."""
+        data = player.convert_to_data()
+        data["map_id"] = self._dao.current_map_id()
+        data["rand_arrival"] = rand_arrival
+        self._dao.save_player(data)

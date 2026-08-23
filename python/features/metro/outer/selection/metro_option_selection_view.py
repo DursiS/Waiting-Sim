@@ -115,6 +115,7 @@ class MetroOptionSelectionView:
             view_model.bet_low,
             view_model.bet_high,
             view_model.bet_stake,
+            view_model.balance,
         )
         if request is None:
             view_model.error = error

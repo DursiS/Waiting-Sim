@@ -604,12 +604,16 @@ class MetroViewModel:
             odds = "P(Bet) = 0.00%"
         else:
             odds = f"P(Bet) = {p * 100:.2f}%"
-        ev = "EV = --" if self.start_ev in (0.0, float("inf")) else f"EV = {self.start_ev:.2f}x"
+        payoff = (
+            "Payoff If Win = --"
+            if self.start_ev in (0.0, float("inf"))
+            else f"Payoff If Win = {self.start_ev:.2f}x"
+        )
 
         x, y = box.left + 12, box.top + 8
         screen.blit(title_font.render(f"Bet: {span}", True, BET_RESULT_COLOR), (x, y))
         screen.blit(font.render(odds, True, BET_ODDS_COLOR), (x, y + 24))
-        screen.blit(font.render(ev, True, BET_ODDS_COLOR), (x, y + 46))
+        screen.blit(font.render(payoff, True, BET_ODDS_COLOR), (x, y + 46))
 
     def draw_betting(self, screen: pygame.Surface, typed: str) -> None:
         """Draw the betting screen: the balance, the odds box, the running
