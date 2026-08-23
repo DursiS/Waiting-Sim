@@ -277,26 +277,26 @@ class MetroSimulationInteractor(MetroSimulationInputBoundry):
             [station2.rule],
         )
 
-    def _probability_is_fastest(
-        self, rule_j: rv_frozen, others: list[rv_frozen]
-    ) -> float:
-        """P(X_j < every rule in <others>) by conditioning on X_j = t,
-        then the survival probabilities multiply."""
-        if self._is_discrete(rule_j):
-            return float(
-                sum(
-                    rule_j.pmf(t) * np.prod([r.sf(t) for r in others])
-                    for t in self._discrete_support(rule_j)
-                )
-            )
-        lower, upper = self._continuous_bounds(rule_j)
-        return float(
-            integrate.quad(
-                lambda t: rule_j.pdf(t) * np.prod([r.sf(t) for r in others]),
-                lower,
-                upper,
-            )[0]
-        )
+    # def _probability_is_fastest(
+    #     self, rule_j: rv_frozen, others: list[rv_frozen]
+    # ) -> float:
+    #     """P(X_j < every rule in <others>) by conditioning on X_j = t,
+    #     then the survival probabilities multiply."""
+    #     if self._is_discrete(rule_j):
+    #         return float(
+    #             sum(
+    #                 rule_j.pmf(t) * np.prod([r.sf(t) for r in others])
+    #                 for t in self._discrete_support(rule_j)
+    #             )
+    #         )
+    #     lower, upper = self._continuous_bounds(rule_j)
+    #     return float(
+    #         integrate.quad(
+    #             lambda t: rule_j.pdf(t) * np.prod([r.sf(t) for r in others]),
+    #             lower,
+    #             upper,
+    #         )[0]
+    #     )
 
     def _fundamental_matrix(self) -> tuple[np.ndarray, list[Station]]:
         """Return (N, transient) with N[i][j] = expected visits to transient j
@@ -316,48 +316,48 @@ class MetroSimulationInteractor(MetroSimulationInputBoundry):
                     )
         return np.linalg.inv(np.eye(len(transient)) - Q), transient
 
-    def _is_discrete(self, rule: rv_frozen) -> bool:
-        """Return whether the frozen distribution <rule> is discrete."""
-        return isinstance(rule.dist, stats.rv_discrete)
-
-    def _discrete_support(self, rule: rv_frozen) -> list[float]:
-        """Return the integer support of discrete <rule>, capped at a far
-        quantile where it is unbounded."""
-        low, high = rule.support()
-        if not np.isfinite(low):
-            low = rule.ppf(1e-12)
-        if not np.isfinite(high):
-            high = rule.ppf(1 - 1e-12)
-        return [i for i in range(int(low), int(high) + 1)]
-
-    def _continuous_bounds(self, rule: rv_frozen) -> tuple[float, float]:
-        """Return practical integration limits spanning <rule>'s density."""
-        return float(rule.ppf(1e-12)), float(rule.ppf(1 - 1e-12))
+    # def _is_discrete(self, rule: rv_frozen) -> bool:
+    #     """Return whether the frozen distribution <rule> is discrete."""
+    #     return isinstance(rule.dist, stats.rv_discrete)
+    #
+    # def _discrete_support(self, rule: rv_frozen) -> list[float]:
+    #     """Return the integer support of discrete <rule>, capped at a far
+    #     quantile where it is unbounded."""
+    #     low, high = rule.support()
+    #     if not np.isfinite(low):
+    #         low = rule.ppf(1e-12)
+    #     if not np.isfinite(high):
+    #         high = rule.ppf(1 - 1e-12)
+    #     return [i for i in range(int(low), int(high) + 1)]
+    #
+    # def _continuous_bounds(self, rule: rv_frozen) -> tuple[float, float]:
+    #     """Return practical integration limits spanning <rule>'s density."""
+    #     return float(rule.ppf(1e-12)), float(rule.ppf(1 - 1e-12))
 
     def _ids_to_stations(self) -> dict[int, Station]:
         """Return the loaded map's stations keyed by their id."""
         return {station.id: station for station in self._world.get_stations()}
 
-    def _n_step_transition_matrix(
-        self, _from: Station, n: int
-    ) -> ndarray[tuple[int], dtype[float64]]:
-        """Return the probability of being at <_to> within <n> steps
-        starting at <_from>."""
-        world_stations = self._world.get_stations()
-        size = len(world_stations)
-        index = {station.id: k for k, station in enumerate(world_stations)}
-        Q = np.zeros((size, size))
-
-        for station_j in world_stations:
-            neighbours = self._world.adjacent_stations(station_j)
-            rules = [neighbour.rule for neighbour in neighbours]
-            for k, neighbour in enumerate(neighbours):
-                Q[index[neighbour.id], index[station_j.id]] = (
-                    self._probability_is_fastest(rules[k], rules[:k] + rules[k + 1 :])
-                )
-
-        column_sums = Q.sum(axis=0)
-        column_sums[column_sums == 0] = 1.0
-        Q = Q / column_sums  # Normalization
-
-        return np.linalg.matrix_power(Q, n)
+    # def _n_step_transition_matrix(
+    #     self, _from: Station, _to: Station, n: int = 1
+    # ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
+    #     """Return the probability of being at <_to> within <n> steps
+    #     starting at <_from>."""
+    #     world_stations = self._world.get_stations()
+    #     size = len(world_stations)
+    #     index = {station.id: k for k, station in enumerate(world_stations)}
+    #     Q = np.zeros((size, size))
+    #
+    #     for station_j in world_stations:
+    #         neighbours = self._world.adjacent_stations(station_j)
+    #         rules = [neighbour.rule for neighbour in neighbours]
+    #         for k, neighbour in enumerate(neighbours):
+    #             Q[index[neighbour.id], index[station_j.id]] = (
+    #                 self._probability_is_fastest(rules[k], rules[:k] + rules[k + 1 :])
+    #             )
+    #
+    #     column_sums = Q.sum(axis=0)
+    #     column_sums[column_sums == 0] = 1.0
+    #     Q = Q / column_sums  # Normalization
+    #
+    #     return np.linalg.matrix_power(Q, n)
