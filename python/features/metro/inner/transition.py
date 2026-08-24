@@ -15,6 +15,7 @@ class Transition:
     _world: World
     _index: dict[int, int]
     _matrix: np.ndarray[tuple[int, int], np.dtype[np.float64]]
+    _reach_memo: dict[tuple[int, int], float]
 
     def __init__(self, world: World) -> None:
         """Build and cache the one-step transition matrix for <world>."""
@@ -22,11 +23,40 @@ class Transition:
         self._index = {
             station.id: k for k, station in enumerate(world.get_stations())
         }
+        self._reach_memo = {}
         self._matrix = self._build_matrix()
 
     def p_from_to(self, _from: Station, _to: Station) -> float:
         """Return the one-step probability of transitioning _from -> _to."""
         return float(self._matrix[self._index[_to.id], self._index[_from.id]])
+
+    def p_reach_end_in(self, remaining: int, station: Station) -> float:
+        """Return the probability of reaching the end in exactly <remaining> more
+        steps from <station>, weighting each outgoing road by its transition
+        probability, memoised for this world."""
+        if station.end:
+            return 1.0 if remaining == 0 else 0.0
+        if remaining <= 0:
+            return 0.0
+        key = (remaining, station.id)
+        if key in self._reach_memo:
+            return self._reach_memo[key]
+        successors = [
+            self._world.get_station_by_id(road.to_id())
+            for road in self._world.get_lines(None).get(station.id, [])
+        ]
+        result = sum(
+            self.p_from_to(station, successor)
+            * self.p_reach_end_in(remaining - 1, successor)
+            for successor in successors
+        )
+        self._reach_memo[key] = result
+        return result
+
+    def p_interval(self, low: int, high: int, station: Station) -> float:
+        """Return the probability of reaching the end in some number of steps in
+        [low, high] from <station>."""
+        return sum(self.p_reach_end_in(k, station) for k in range(low, high + 1))
 
     def n_step_transition_matrix(
         self, n: int = 1
