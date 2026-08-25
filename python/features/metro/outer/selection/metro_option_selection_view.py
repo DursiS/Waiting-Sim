@@ -63,9 +63,13 @@ class MetroOptionSelectionView:
         elif event.key == pygame.K_BACKSPACE:
             key = view_model.focused
             view_model.set_text(key, view_model.text_value(key)[:-1])
+            if key in ("bet_low", "bet_high"):
+                self._update_optimal()
         elif event.unicode and self._accepts(view_model.focused, event.unicode):
             key = view_model.focused
             view_model.set_text(key, view_model.text_value(key) + event.unicode)
+            if key in ("bet_low", "bet_high"):
+                self._update_optimal()
 
     def _accepts(self, key: str, char: str) -> bool:
         """Return whether <char> is a valid keystroke for field <key>."""
@@ -75,6 +79,37 @@ class MetroOptionSelectionView:
             return char.isdigit() or (char == "." and "." not in self._view_model.bet_stake)
         return char.isdigit()
 
+    def _update_optimal(self) -> None:
+        """Recompute the suggested optimal stake for the current gamble interval,
+        or clear it when not gambling or the interval is incomplete."""
+        view_model = self._view_model
+        if (
+            view_model.mode == "gamble"
+            and view_model.bet_low.isdigit()
+            and view_model.bet_high.isdigit()
+        ):
+            low, high = int(view_model.bet_low), int(view_model.bet_high)
+            if 0 < low <= high:
+                view_model.optimal = self._controller.optimal_bet_amount(
+                    low, high, view_model.map_id, view_model.balance
+                )
+                return
+        view_model.optimal = None
+
+    def _update_optimal_range(self) -> None:
+        """Recompute the map's globally optimal betting range (independent of the
+        typed interval), clearing it when not gambling or it is unavailable."""
+        view_model = self._view_model
+        if view_model.mode != "gamble":
+            view_model.optimal_range = None
+            return
+        try:
+            view_model.optimal_range = self._controller.optimal_betting_range(
+                view_model.map_id
+            )
+        except Exception:
+            view_model.optimal_range = None
+
     def _handle_click(self, pos: tuple[int, int]) -> None:
         """Route a left click to a mode, map, field, toggle, or the Start button."""
         view_model = self._view_model
@@ -83,11 +118,15 @@ class MetroOptionSelectionView:
             if mode != view_model.mode:
                 audio.play("click")
                 view_model.set_mode(mode)
+                self._update_optimal()
+                self._update_optimal_range()
             return
         map_id = view_model.map_at(pos)
         if map_id is not None:
             audio.play("click")
             view_model.map_id = map_id
+            self._update_optimal()
+            self._update_optimal_range()
             return
         key = view_model.field_at(pos)
         if key is not None:

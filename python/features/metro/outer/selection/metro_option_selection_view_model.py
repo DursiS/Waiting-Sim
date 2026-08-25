@@ -74,6 +74,8 @@ class MetroOptionSelectionViewModel:
     focused: str | None
     error: str
     balance: float
+    optimal: float | None
+    optimal_range: tuple[int, int] | None
 
     def __init__(self, map_ids: list[int], balance: float) -> None:
         self.width = WIDTH
@@ -91,6 +93,8 @@ class MetroOptionSelectionViewModel:
         self.trials = "1000"
         self.focused = None
         self.error = ""
+        self.optimal = None
+        self.optimal_range = None
 
         self._mode_rects: dict[str, pygame.Rect] = {}
         self._map_rects: dict[int, pygame.Rect] = {}
@@ -234,6 +238,24 @@ class MetroOptionSelectionViewModel:
                 f"Balance: ${self.balance:.2f}", True, TITLE_COLOR
             )
             screen.blit(money, money.get_rect(topright=(WIDTH - 24, 22)))
+            if "bet_stake" in self._field_rects:
+                rect = self._field_rects["bet_stake"]
+                text = (
+                    "Optimal: --"
+                    if self.optimal is None
+                    else f"Optimal: ${self.optimal:.2f}"
+                )
+                optimal = self._font_label.render(text, True, TITLE_COLOR)
+                screen.blit(
+                    optimal, optimal.get_rect(midleft=(rect.right + 16, rect.centery))
+                )
+            if self.optimal_range is not None and "bet_high" in self._field_rects:
+                rect = self._field_rects["bet_high"]
+                low, high = self.optimal_range
+                best = self._font_label.render(
+                    f"Best: {low}-{high}", True, TITLE_COLOR
+                )
+                screen.blit(best, best.get_rect(midleft=(rect.right + 24, rect.centery)))
 
         if self.error:
             error = self._font_err.render(self.error, True, ERROR_COLOR)

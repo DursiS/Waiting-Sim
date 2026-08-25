@@ -27,7 +27,7 @@ MATRIX_LABEL_COLOR = (250, 205, 100)
 MATRIX_VALUE_COLOR = (210, 226, 240)
 
 # The metrics the interactor reports, keyed by their (row, column) in the grid.
-# Rows 0-1 are single-value cells; rows >= SCALAR_ROWS are full-width matrices.
+# Rows 0-1 are single-value hamster; rows >= SCALAR_ROWS are full-width matrices.
 DEFAULT_CELLS = {
     (0, 0): ("Avg wait time", "-"),
     (0, 1): ("Avg wait (random arrival)", "-"),
@@ -56,7 +56,7 @@ class MetroSimulationViewModel:
         cells: dict[tuple[int, int], tuple[str, str]] = None,
         messages: list[str] = None,
     ) -> None:
-        """Create a ViewModel showing <cells> as labelled metrics."""
+        """Create a ViewModel showing <hamster> as labelled metrics."""
         self.cells = cells or dict(DEFAULT_CELLS)
         self.messages = messages or []
         self.loading = False
@@ -68,7 +68,7 @@ class MetroSimulationViewModel:
         self.loading = loading
 
     def _scalar_cells(self) -> list[tuple[int, int]]:
-        """Return the positions of the small single-value metric cells."""
+        """Return the positions of the small single-value metric hamster."""
         return [pos for pos in self.cells if pos[0] < SCALAR_ROWS]
 
     def _matrix_cells(self) -> list[tuple[int, int]]:
@@ -146,14 +146,16 @@ class MetroSimulationViewModel:
         value_font: pygame.font.Font,
         matrix_font: pygame.font.Font,
     ) -> None:
-        """Draw the scalar metric cells, then the full-width matrix panels."""
+        """Draw the scalar metric hamster, then the full-width matrix panels."""
         for row, col in self._scalar_cells():
             self._draw_scalar_cell(screen, row, col, label_font, value_font)
 
         y = self._matrices_top()
         for pos in self._matrix_cells():
             label, value = self.cells[pos]
-            y = self._draw_matrix_panel(screen, label, value, y, label_font, matrix_font)
+            y = self._draw_matrix_panel(
+                screen, label, value, y, label_font, matrix_font
+            )
             y += MATRIX_GAP
 
     def _draw_scalar_cell(
