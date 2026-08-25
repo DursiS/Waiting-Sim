@@ -26,17 +26,16 @@ class MetroInteractor(MetroInputBoundry):
 
     _world: World
     _dao: WorldDataAccessInterface
-    _presenter: MetroOutputBoundry | None
+    _presenter: MetroOutputBoundry
     _last_game: tuple | None
     _log: BetLog
     _admin: Player
     _curr_path: list[int]
     _all_paths: list[tuple[int, ...]] | None
     _transition: Transition
-    _transition_map_id: int | None
 
     def __init__(
-        self, dao: WorldDataAccessInterface, presenter: MetroOutputBoundry | None
+        self, dao: WorldDataAccessInterface, presenter: MetroOutputBoundry
     ) -> None:
 
         self._dao = dao
@@ -47,7 +46,6 @@ class MetroInteractor(MetroInputBoundry):
         self._admin = Player(None)
         self._curr_path = []
         self._all_paths = None
-        self._transition_map_id = None
 
     def execute(
         self,
@@ -98,7 +96,6 @@ class MetroInteractor(MetroInputBoundry):
         phase_id, bets = -1, ()
         if gamble:
             self._transition = Transition(self._world)
-            self._transition_map_id = map_id
             phase_id = self._log.new_betting_phase()
             self._load_bets(phase_id, raw_bets)
             self._log.complete_phase(phase_id)
@@ -310,24 +307,6 @@ class MetroInteractor(MetroInputBoundry):
         fair_value = 1 / p if p != 0 else 1 / 2
         house_value = fair_value * HOUSE_DEFLATOR
         return house_value - 1
-
-    def optimal_bet_amount(
-        self, low: int, high: int, map_id: int, balance: float
-    ) -> float:
-        """Return the Kelly-optimal stake for betting the [low, high] step
-        interval on map <map_id> with <balance>, or 0 when the edge is not
-        positive. Assumes even-money odds (edge = 2p - 1)."""
-        self._ensure_transition(map_id)
-        p = self._transition.p_interval(low, high, self._world.starting_station())
-        return max(0.0, 2 * p - 1) * balance
-
-    def _ensure_transition(self, map_id: int) -> None:
-        """Load <map_id> and rebuild its transition model unless it is already
-        the one currently held."""
-        if self._transition_map_id != map_id:
-            self._load_map(map_id)
-            self._transition = Transition(self._world)
-            self._transition_map_id = map_id
 
     # def _best_highscore(self, rand_arrival: bool) -> dict | None:
     #     """Return the lowest-time completion of the current map for the given
