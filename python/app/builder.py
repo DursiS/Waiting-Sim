@@ -3,6 +3,7 @@ from features.metro.inner import WorldDataAccess
 from features.metro.inner import MetroInteractor
 from features.metro.inner import MetroInputData
 from features.metro.inner import Player
+from features.metro.inner import MetroOptionSelectionInteractor
 from features.metro.outer.play import (
     MetroController,
     MetroPresenter,
@@ -55,10 +56,9 @@ class WaitingSimulatorBuilder:
     def build_metro_option_selection(self) -> MetroOptionSelectionView:
         """Build the Metro entry screen where the player picks a mode and inputs,
         then launches the chosen game with that request."""
-        view_model = MetroOptionSelectionViewModel(
-            WorldDataAccess().map_ids(), Player(None).balance
-        )
-        controller = MetroOptionSelectionController()
+        dao = WorldDataAccess()
+        controller = MetroOptionSelectionController(MetroOptionSelectionInteractor(dao))
+        view_model = MetroOptionSelectionViewModel(dao.map_ids(), Player(None).balance)
         return MetroOptionSelectionView(
             controller=controller,
             view_model=view_model,
