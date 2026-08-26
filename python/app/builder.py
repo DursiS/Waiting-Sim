@@ -15,13 +15,6 @@ from features.metro.outer.selection import (
     MetroOptionSelectionView,
     MetroOptionSelectionViewModel,
 )
-from features.metro.inner import MetroSimulationInteractor
-from features.metro.outer.simulation import (
-    MetroSimulationController,
-    MetroSimulationPresenter,
-    MetroSimulationView,
-    MetroSimulationViewModel,
-)
 from features.flying.outer import (
     FlyingController,
     FlyingPresenter,
@@ -80,20 +73,4 @@ class WaitingSimulatorBuilder:
             presenter=metro_presenter,
             interactor=metro_interactor,
             view_model=metro_view_model,
-        )
-
-    def build_simulation(self) -> MetroSimulationView:
-        """Build a new MetroSimulationView."""
-        sim_view_model = MetroSimulationViewModel()
-        sim_presenter = MetroSimulationPresenter(sim_view_model)
-        sim_interactor = MetroSimulationInteractor(
-            dao=WorldDataAccess(),
-            presenter=sim_presenter,
-        )
-        sim_controller = MetroSimulationController(sim_interactor)
-        return MetroSimulationView(
-            controller=sim_controller,
-            presenter=sim_presenter,
-            interactor=sim_interactor,
-            view_model=sim_view_model,
         )

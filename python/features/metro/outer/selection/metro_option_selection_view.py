@@ -9,10 +9,10 @@ from .metro_option_selection_view_model import MetroOptionSelectionViewModel
 
 
 class MetroOptionSelectionView:
-    """The Metro entry screen: pick a mode (Simulate/Play/Gamble) and fill in
-    its inputs, then Start launches the game with that request. The screen keeps
-    its state for the whole Metro session, so returning from a game lands back
-    here with the same inputs; Q leaves Metro back to the main menu."""
+    """The Metro entry screen: pick a mode (Play/Gamble) and fill in its inputs,
+    then Start launches the game with that request. The screen keeps its state
+    for the whole Metro session, so returning from a game lands back here with
+    the same inputs; Q leaves Metro back to the main menu."""
 
     _controller: MetroOptionSelectionController
     _view_model: MetroOptionSelectionViewModel
@@ -63,13 +63,13 @@ class MetroOptionSelectionView:
         elif event.key == pygame.K_BACKSPACE:
             key = view_model.focused
             view_model.set_text(key, view_model.text_value(key)[:-1])
-            if key in ("bet_low", "bet_high"):
-                self._update_optimal()
+            if key in ("bet_low", "bet_high", "bet_stake"):
+                self._update_bet_hints()
         elif event.unicode and self._accepts(view_model.focused, event.unicode):
             key = view_model.focused
             view_model.set_text(key, view_model.text_value(key) + event.unicode)
-            if key in ("bet_low", "bet_high"):
-                self._update_optimal()
+            if key in ("bet_low", "bet_high", "bet_stake"):
+                self._update_bet_hints()
 
     def _accepts(self, key: str, char: str) -> bool:
         """Return whether <char> is a valid keystroke for field <key>."""
@@ -79,9 +79,9 @@ class MetroOptionSelectionView:
             return char.isdigit() or (char == "." and "." not in self._view_model.bet_stake)
         return char.isdigit()
 
-    def _update_optimal(self) -> None:
-        """Recompute the suggested optimal stake for the current gamble interval,
-        or clear it when not gambling or the interval is incomplete."""
+    def _update_bet_hints(self) -> None:
+        """Recompute the suggested optimal stake and the potential payout for the
+        current gamble interval and stake, clearing them when unavailable."""
         view_model = self._view_model
         if (
             view_model.mode == "gamble"
@@ -93,8 +93,21 @@ class MetroOptionSelectionView:
                 view_model.optimal = self._controller.optimal_bet_amount(
                     low, high, view_model.map_id, view_model.balance
                 )
+                view_model.payout = self._payout(low, high)
                 return
         view_model.optimal = None
+        view_model.payout = None
+
+    def _payout(self, low: int, high: int) -> float | None:
+        """Return the payout on a winning [low, high] bet at the typed stake, or
+        None when the stake is not a positive number."""
+        try:
+            stake = float(self._view_model.bet_stake)
+        except ValueError:
+            return None
+        if stake <= 0:
+            return None
+        return self._controller.bet_payout(low, high, self._view_model.map_id, stake)
 
     def _update_optimal_range(self) -> None:
         """Recompute the map's globally optimal betting range (independent of the
@@ -118,14 +131,14 @@ class MetroOptionSelectionView:
             if mode != view_model.mode:
                 audio.play("click")
                 view_model.set_mode(mode)
-                self._update_optimal()
+                self._update_bet_hints()
                 self._update_optimal_range()
             return
         map_id = view_model.map_at(pos)
         if map_id is not None:
             audio.play("click")
             view_model.map_id = map_id
-            self._update_optimal()
+            self._update_bet_hints()
             self._update_optimal_range()
             return
         key = view_model.field_at(pos)
@@ -142,8 +155,7 @@ class MetroOptionSelectionView:
         view_model.focused = None
 
     def _start(self) -> None:
-        """Build the request from the current inputs and launch it, or show why
-        it can't."""
+        """Launch the game for the current inputs, or show why it can't."""
         view_model = self._view_model
         request, error = self._controller.build_request(
             view_model.mode,

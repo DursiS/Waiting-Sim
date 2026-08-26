@@ -17,8 +17,13 @@ class MetroOptionSelectionController:
         """Return the suggested optimal stake for the [low, high] interval."""
         return self._input_boundry.optimal_bet_amount(low, high, map_id, balance)
 
-    def optimal_betting_range(self, map_id: int) -> tuple[int, int]:
-        """Return the globally optimal betting interval for map <map_id>."""
+    def bet_payout(self, low: int, high: int, map_id: int, stake: float) -> float:
+        """Return the payout on a winning [low, high] bet of <stake>."""
+        return self._input_boundry.bet_payout(low, high, map_id, stake)
+
+    def optimal_betting_range(self, map_id: int) -> tuple[int, int, float]:
+        """Return the globally optimal betting interval and its win probability
+        for map <map_id>."""
         return self._input_boundry.optimal_betting_range(map_id)
 
     def build_request(

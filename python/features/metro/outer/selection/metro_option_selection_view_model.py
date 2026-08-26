@@ -28,29 +28,21 @@ START_LABEL_COLOR = (245, 248, 252)
 HINT_COLOR = (150, 160, 175)
 ERROR_COLOR = (230, 120, 110)
 
-MODES = ["simulate", "play", "gamble"]
-MODE_LABELS = {"simulate": "Simulate", "play": "Play", "gamble": "Gamble"}
+MODES = ["play", "gamble"]
+MODE_LABELS = {"play": "Play", "gamble": "Gamble"}
 
 FIELDS = {
     "play": [
-        ("name", "text", "Name"),
         ("map", "map", "Map"),
         ("rand_arrival", "toggle", "Random arrival"),
         ("animate", "toggle", "Animate"),
     ],
     "gamble": [
-        ("name", "text", "Name"),
         ("map", "map", "Map"),
         ("bet_range", "range", "Bet interval (steps)"),
         ("bet_stake", "text", "Stake"),
         ("rand_arrival", "toggle", "Random arrival"),
         ("animate", "toggle", "Animate"),
-    ],
-    "simulate": [
-        ("name", "text", "Name"),
-        ("map", "map", "Map"),
-        ("trials", "text", "Trials"),
-        ("rand_arrival", "toggle", "Random arrival"),
     ],
 }
 
@@ -75,7 +67,8 @@ class MetroOptionSelectionViewModel:
     error: str
     balance: float
     optimal: float | None
-    optimal_range: tuple[int, int] | None
+    optimal_range: tuple[int, int, float] | None
+    payout: float | None
 
     def __init__(self, map_ids: list[int], balance: float) -> None:
         self.width = WIDTH
@@ -95,6 +88,7 @@ class MetroOptionSelectionViewModel:
         self.error = ""
         self.optimal = None
         self.optimal_range = None
+        self.payout = None
 
         self._mode_rects: dict[str, pygame.Rect] = {}
         self._map_rects: dict[int, pygame.Rect] = {}
@@ -249,13 +243,24 @@ class MetroOptionSelectionViewModel:
                 screen.blit(
                     optimal, optimal.get_rect(midleft=(rect.right + 16, rect.centery))
                 )
-            if self.optimal_range is not None and "bet_high" in self._field_rects:
-                rect = self._field_rects["bet_high"]
-                low, high = self.optimal_range
-                best = self._font_label.render(
-                    f"Best: {low}-{high}", True, TITLE_COLOR
+            if self.payout is not None:
+                win = self._font_label.render(
+                    f"Potential win: ${self.payout:.2f}", True, TITLE_COLOR
                 )
-                screen.blit(best, best.get_rect(midleft=(rect.right + 24, rect.centery)))
+                screen.blit(
+                    win,
+                    win.get_rect(
+                        midbottom=(self._panel.centerx, self._panel.bottom - 16)
+                    ),
+                )
+            if self.optimal_range is not None:
+                low, high, prob = self.optimal_range
+                best = self._font_label.render(
+                    f"Optimal range: {low}-{high} ({prob * 100:.0f}%)",
+                    True,
+                    TITLE_COLOR,
+                )
+                screen.blit(best, best.get_rect(topleft=(24, 22)))
 
         if self.error:
             error = self._font_err.render(self.error, True, ERROR_COLOR)
