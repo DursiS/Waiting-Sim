@@ -13,6 +13,11 @@ class MetroOptionSelectionInputBoundry(ABC):
         map <map_id> with <balance>."""
 
     @abstractmethod
-    def optimal_betting_range(self, map_id: int) -> tuple[int, int]:
-        """Return the globally optimal betting interval (low, high) for map
-        <map_id> -- the range that maximises betting EV."""
+    def bet_payout(self, low: int, high: int, map_id: int, stake: float) -> float:
+        """Return the payout on a winning [low, high] bet of <stake> on map
+        <map_id>."""
+
+    @abstractmethod
+    def optimal_betting_range(self, map_id: int) -> tuple[int, int, float]:
+        """Return the globally optimal betting interval and its win probability
+        for map <map_id> -- the highest-probability (safest) range."""

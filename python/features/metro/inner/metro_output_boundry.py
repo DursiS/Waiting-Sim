@@ -79,10 +79,6 @@ class MetroOutputBoundry(ABC):
         """Show the player's cumulative wait time so far."""
 
     @abstractmethod
-    def show_best_highscore(self, best: dict | None) -> None:
-        """Show the current map's best highscore, or N/A if there is none."""
-
-    @abstractmethod
     def show_loading(self, loading: bool) -> None:
         """Show or hide the animated waiting dots while waiting for trains."""
 

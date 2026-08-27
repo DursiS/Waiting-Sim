@@ -58,6 +58,20 @@ class Transition:
         [low, high] from <station>."""
         return sum(self.p_reach_end_in(k, station) for k in range(low, high + 1))
 
+    def fundamental_matrix(
+        self,
+    ) -> tuple[np.ndarray[tuple[int, int], np.dtype[np.float64]], list[Station]]:
+        """Return (N, transient) with N[i][j] the expected number of visits to
+        transient station j before reaching the end, starting from transient
+        station i."""
+        transient = [station for station in self._world.get_stations() if not station.end]
+        size = len(transient)
+        sub = np.zeros((size, size))
+        for a, from_station in enumerate(transient):
+            for b, to_station in enumerate(transient):
+                sub[a, b] = self.p_from_to(from_station, to_station)
+        return np.linalg.inv(np.eye(size) - sub), transient
+
     def n_step_transition_matrix(
         self, n: int = 1
     ) -> np.ndarray[tuple[int, int], np.dtype[np.float64]]:

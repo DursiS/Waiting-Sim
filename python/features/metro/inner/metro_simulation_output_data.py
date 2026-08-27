@@ -1,0 +1,2 @@
+class MetroSimulationOutputData:
+    pass

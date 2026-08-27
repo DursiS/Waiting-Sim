@@ -308,12 +308,6 @@ class MetroInteractor(MetroInputBoundry):
         house_value = fair_value * HOUSE_DEFLATOR
         return house_value - 1
 
-    # def _best_highscore(self, rand_arrival: bool) -> dict | None:
-    #     """Return the lowest-time completion of the current map for the given
-    #     random-arrival setting, or None."""
-    #     highscores = self._dao.get_highscores(self._dao.current_map_id(), rand_arrival)
-    #     return min(highscores, key=lambda entry: entry["time"]) if highscores else None
-
     # def _station_expectations(self) -> list[tuple[str, float, float]]:
     #     """Return the name, expected wait and std dev of every station."""
     #     return [

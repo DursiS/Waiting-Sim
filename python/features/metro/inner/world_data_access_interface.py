@@ -63,18 +63,6 @@ class WorldDataAccessInterface(ABC):
         """Return the id of the currently loaded map."""
 
     @abstractmethod
-    def save_highscore(
-        self, map_id: int, rand_arrival: bool, name: str, time_waited: float
-    ) -> None:
-        """Append a completion of map <map_id> to the persistent highscores,
-        kept separate per random-arrival setting."""
-
-    @abstractmethod
-    def get_highscores(self, map_id: int, rand_arrival: bool) -> list[dict]:
-        """Return every recorded completion of map <map_id> for the given
-        random-arrival setting."""
-
-    @abstractmethod
     def save_player(self, player_data: dict) -> None:
         """Write player_info into player_data.json."""
 

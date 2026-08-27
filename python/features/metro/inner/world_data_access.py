@@ -12,7 +12,6 @@ from .world_data_access_interface import WorldDataAccessInterface
 DATA_DIR = os.path.join(os.path.dirname(__file__), os.pardir, "outer")
 PLAYER_DATA_PATH = os.path.join(DATA_DIR, "player_data.json")
 WORLDS_DATA_PATH = os.path.join(DATA_DIR, "worlds.json")
-HIGHSCORES_PATH = os.path.join(DATA_DIR, "highscores.json")
 STATIONS_PATH = os.path.join(DATA_DIR, "stations.json")
 
 RULE_FACTORIES = {
@@ -173,33 +172,3 @@ class WorldDataAccess(WorldDataAccessInterface):
         with open(PLAYER_DATA_PATH, "w"):
             pass
 
-    def _load_highscores(self) -> dict:
-        """Return every map's highscores keyed by map id, or an empty mapping."""
-        if not os.path.exists(HIGHSCORES_PATH) or os.path.getsize(HIGHSCORES_PATH) == 0:
-            return {}
-        with open(HIGHSCORES_PATH, "r") as f:
-            return json.load(f)
-
-    def save_highscore(
-        self, map_id: int, rand_arrival: bool, name: str, time_waited: float
-    ) -> None:
-        """Append <name>'s <time_waited> completion of map <map_id> to the
-        persistent highscores, kept separate per random-arrival setting."""
-        highscores = self._load_highscores()
-        by_map = highscores.get(str(map_id))
-        if not isinstance(by_map, dict):
-            by_map = {}
-            highscores[str(map_id)] = by_map
-        by_map.setdefault(str(rand_arrival), []).append(
-            {"name": name, "time": time_waited}
-        )
-        with open(HIGHSCORES_PATH, "w") as f:
-            json.dump(highscores, f, indent=2)
-
-    def get_highscores(self, map_id: int, rand_arrival: bool) -> list[dict]:
-        """Return every recorded completion of map <map_id> for the given
-        random-arrival setting."""
-        by_map = self._load_highscores().get(str(map_id), {})
-        if not isinstance(by_map, dict):
-            return []
-        return by_map.get(str(rand_arrival), [])

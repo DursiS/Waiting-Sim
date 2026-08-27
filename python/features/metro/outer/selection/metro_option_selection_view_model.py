@@ -244,8 +244,9 @@ class MetroOptionSelectionViewModel:
                     optimal, optimal.get_rect(midleft=(rect.right + 16, rect.centery))
                 )
             if self.payout is not None:
+                sign = "-" if self.payout < 0 else ""
                 win = self._font_label.render(
-                    f"Potential win: ${self.payout:.2f}", True, TITLE_COLOR
+                    f"Potential win: {sign}${abs(self.payout):.2f}", True, TITLE_COLOR
                 )
                 screen.blit(
                     win,
