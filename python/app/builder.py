@@ -3,6 +3,7 @@ from features.metro.inner import WorldDataAccess
 from features.metro.inner import MetroInteractor
 from features.metro.inner import MetroInputData
 from features.metro.inner import Player
+from features.metro.inner import MetroOptionSelectionInteractor
 from features.metro.outer.play import (
     MetroController,
     MetroPresenter,
@@ -13,13 +14,6 @@ from features.metro.outer.selection import (
     MetroOptionSelectionController,
     MetroOptionSelectionView,
     MetroOptionSelectionViewModel,
-)
-from features.metro.inner import MetroSimulationInteractor
-from features.metro.outer.simulation import (
-    MetroSimulationController,
-    MetroSimulationPresenter,
-    MetroSimulationView,
-    MetroSimulationViewModel,
 )
 from features.flying.outer import (
     FlyingController,
@@ -55,10 +49,9 @@ class WaitingSimulatorBuilder:
     def build_metro_option_selection(self) -> MetroOptionSelectionView:
         """Build the Metro entry screen where the player picks a mode and inputs,
         then launches the chosen game with that request."""
-        view_model = MetroOptionSelectionViewModel(
-            WorldDataAccess().map_ids(), Player(None).balance
-        )
-        controller = MetroOptionSelectionController()
+        dao = WorldDataAccess()
+        controller = MetroOptionSelectionController(MetroOptionSelectionInteractor(dao))
+        view_model = MetroOptionSelectionViewModel(dao.map_ids(), Player(None).balance)
         return MetroOptionSelectionView(
             controller=controller,
             view_model=view_model,
@@ -80,20 +73,4 @@ class WaitingSimulatorBuilder:
             presenter=metro_presenter,
             interactor=metro_interactor,
             view_model=metro_view_model,
-        )
-
-    def build_simulation(self) -> MetroSimulationView:
-        """Build a new MetroSimulationView."""
-        sim_view_model = MetroSimulationViewModel()
-        sim_presenter = MetroSimulationPresenter(sim_view_model)
-        sim_interactor = MetroSimulationInteractor(
-            dao=WorldDataAccess(),
-            presenter=sim_presenter,
-        )
-        sim_controller = MetroSimulationController(sim_interactor)
-        return MetroSimulationView(
-            controller=sim_controller,
-            presenter=sim_presenter,
-            interactor=sim_interactor,
-            view_model=sim_view_model,
         )

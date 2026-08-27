@@ -48,7 +48,6 @@ TOTAL_WAIT_COLOR = (255, 235, 150)
 BET_RESULT_COLOR = (250, 220, 130)
 BET_ODDS_COLOR = (185, 225, 210)
 BET_PANEL_BG_COLOR = (10, 12, 16, 210)
-BEST_SCORE_COLOR = (150, 235, 170)
 STEP_COLOR = (185, 210, 235)
 STATUS_COLOR = (200, 212, 228)
 KEY_COLOR = (250, 210, 90)
@@ -86,7 +85,6 @@ class MetroViewModel:
     wait_stats: list[str]
     total_wait: float
     steps: int
-    best_highscore: str
     loading: bool
     game_over: bool
     incoming_train: tuple[Station | None, Station, int, float] | None
@@ -97,7 +95,6 @@ class MetroViewModel:
     bet_targets: dict[int, int]
     bet_odds: dict[int, float]
     start_ev: float
-    show_best: bool
     show_controls: bool
     phase: str
     balance: float
@@ -126,7 +123,6 @@ class MetroViewModel:
         self.wait_stats = []
         self.total_wait = 0.0
         self.steps = 0
-        self.best_highscore = "N/A"
         self.loading = False
         self.game_over = False
         self.incoming_train = None
@@ -137,7 +133,6 @@ class MetroViewModel:
         self.bet_targets = {}
         self.bet_odds = {}
         self.start_ev = 0.0
-        self.show_best = True
         self.show_controls = True
         self.phase = "game"
         self.balance = 0.0
@@ -171,10 +166,6 @@ class MetroViewModel:
     def set_bet_odds(self, probabilities: dict[int, float]) -> None:
         """Update each bet's live win probability, keyed by bet id."""
         self.bet_odds = dict(probabilities)
-
-    def set_show_best(self, show_best: bool) -> None:
-        """Show or hide the best-completion line in the HUD."""
-        self.show_best = show_best
 
     def set_show_controls(self, show_controls: bool) -> None:
         """Show or hide the bottom control bar."""
@@ -285,10 +276,6 @@ class MetroViewModel:
     def set_total_wait(self, total_wait: float) -> None:
         """Set the player's cumulative wait time shown in the HUD."""
         self.total_wait = total_wait
-
-    def set_best_highscore(self, best_highscore: str) -> None:
-        """Set the current map's best highscore shown in the HUD."""
-        self.best_highscore = best_highscore
 
     def set_loading(self, loading: bool) -> None:
         """Show or hide the animated dots on the latest status line."""
@@ -467,12 +454,6 @@ class MetroViewModel:
         screen.blit(steps, (24, y))
         left_width = max(total.get_width(), steps.get_width())
         y += steps.get_height() + 6
-        if self.show_best:
-            best = hud_font.render(
-                f"Best: {self.best_highscore}", True, BEST_SCORE_COLOR
-            )
-            screen.blit(best, (24, y))
-            left_width = max(left_width, best.get_width())
 
         if self.bet_result is not None:
             y = 14

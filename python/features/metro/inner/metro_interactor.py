@@ -32,7 +32,6 @@ class MetroInteractor(MetroInputBoundry):
     _admin: Player
     _curr_path: list[int]
     _all_paths: list[tuple[int, ...]] | None
-    _p_memo: dict[tuple[int, int], float]
     _transition: Transition
 
     def __init__(
@@ -47,7 +46,6 @@ class MetroInteractor(MetroInputBoundry):
         self._admin = Player(None)
         self._curr_path = []
         self._all_paths = None
-        self._p_memo = {}
 
     def execute(
         self,
@@ -94,7 +92,6 @@ class MetroInteractor(MetroInputBoundry):
         self._last_game = (player, name, map_id, rand_arrival, gamble)
         self._curr_path = []
         self._all_paths = None
-        self._p_memo = {}
 
         phase_id, bets = -1, ()
         if gamble:
@@ -116,7 +113,7 @@ class MetroInteractor(MetroInputBoundry):
                 (
                     bet.id(),
                     bet.get_end_steps(),
-                    self._p_bet(bet.get_end_steps(), player.station),
+                    self._p_end_in_remaining(bet.get_end_steps(), player.station),
                 )
                 for bet in bets
             ]
@@ -167,7 +164,9 @@ class MetroInteractor(MetroInputBoundry):
 
         steps_taken = len(self._curr_path) - 1 if self._curr_path else 0
         probabilities = {
-            bet.id(): self._p_bet(bet.get_end_steps() - steps_taken, player.station)
+            bet.id(): self._p_end_in_remaining(
+                bet.get_end_steps() - steps_taken, player.station
+            )
             for bet in bets
         }
 
@@ -286,33 +285,10 @@ class MetroInteractor(MetroInputBoundry):
     # Bet Handling
     # ========
 
-    def _p_bet(self, remaining: int, station: Station) -> float:
-        """Return the probability of reaching the end in exactly <remaining> more
-        steps from <station>, as a random walk over the outgoing roads.
-
-        Each branch is weighted by its transition probability (uniform for now),
-        so paths that share a prefix are not over-counted, they are not
-        independent. Base case: standing on the end wins with 0 steps left. The
-        result depends only on the map, so it is memorised for the game."""
-        if station.end:
-            return 1.0 if remaining == 0 else 0.0
-        if remaining <= 0:
-            return 0.0
-        key = (remaining, station.id)
-        if key in self._p_memo:
-            return self._p_memo[key]
-        successors = [
-            self._world.get_station_by_id(road.to_id())
-            for road in self._world.roads_from(station)
-        ]
-
-        weights = [self._transition.p_from_to(station, s) for s in successors]
-        result = sum(
-            weights[i] * self._p_bet(remaining - 1, successors[i])
-            for i in range(len(successors))
-        )
-        self._p_memo[key] = result
-        return result
+    def _p_end_in_remaining(self, remaining: int, station: Station) -> float:
+        """Delegate to the transition model: the probability of reaching the end
+        in exactly <remaining> more steps from <station>."""
+        return self._transition.p_reach_end_in(remaining, station)
 
     def _create_bet(self, player: Player, amount: float, end_steps: int) -> Bet | None:
         """Build a bet on <end_steps>, or None if the stake or count is
@@ -327,17 +303,10 @@ class MetroInteractor(MetroInputBoundry):
         """Return the profit multiple paid on a winning bet -- the fair odds
         shaved by the house edge -- so a stake returns stake * factor as profit
         on a win."""
-        p = self._p_bet(end_steps, player.station)
-        # TODO: remove later the if/else
+        p = self._p_end_in_remaining(end_steps, player.station)
         fair_value = 1 / p if p != 0 else 1 / 2
         house_value = fair_value * HOUSE_DEFLATOR
         return house_value - 1
-
-    # def _best_highscore(self, rand_arrival: bool) -> dict | None:
-    #     """Return the lowest-time completion of the current map for the given
-    #     random-arrival setting, or None."""
-    #     highscores = self._dao.get_highscores(self._dao.current_map_id(), rand_arrival)
-    #     return min(highscores, key=lambda entry: entry["time"]) if highscores else None
 
     # def _station_expectations(self) -> list[tuple[str, float, float]]:
     #     """Return the name, expected wait and std dev of every station."""

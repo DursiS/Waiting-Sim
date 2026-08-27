@@ -32,7 +32,6 @@ class MetroPresenter(MetroOutputBoundry):
         self.view_model.set_phase("game")
         self.show_stations(stations)
         self.show_roads(roads)
-        self.view_model.set_show_best(not gamble)
         self.view_model.set_show_controls(False)
         self.view_model.set_bet_result(None)
         self.view_model.set_game_over(False)
@@ -167,13 +166,6 @@ class MetroPresenter(MetroOutputBoundry):
     def show_total_wait(self, total_wait: float) -> None:
         """Show the player's cumulative wait time so far."""
         self.view_model.set_total_wait(total_wait)
-
-    def show_best_highscore(self, best: dict | None) -> None:
-        """Show the current map's best highscore, or N/A if there is none."""
-        if best is None:
-            self.view_model.set_best_highscore("N/A")
-        else:
-            self.view_model.set_best_highscore(f"{best['name']} {best['time']:.1f}s")
 
     def show_loading(self, loading: bool) -> None:
         """Show or hide the animated waiting dots while waiting for trains."""

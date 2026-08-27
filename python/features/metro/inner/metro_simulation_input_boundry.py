@@ -5,7 +5,7 @@ class MetroSimulationInputBoundry(ABC):
     """An input boundry between Game Interactor and Controller."""
 
     @abstractmethod
-    def execute_simulation(self, trials: int, steps: int, map_id: int) -> None:
+    def execute_simulation(self, trials: int, map_id: int) -> None:
         """Execute a new simulation on the map with id <map_id>."""
 
     @abstractmethod

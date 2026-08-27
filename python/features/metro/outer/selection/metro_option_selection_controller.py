@@ -1,9 +1,30 @@
-from features.metro.inner import MetroInputData
+from features.metro.inner import MetroInputData, MetroOptionSelectionInputBoundry
 
 
 class MetroOptionSelectionController:
     """Assembles a validated Metro request from the option-selection screen's
-    raw field values, returning None and a message when the inputs are invalid."""
+    raw field values, and answers the interactor's optimal-stake and
+    optimal-range queries so the screen can suggest them."""
+
+    _input_boundry: MetroOptionSelectionInputBoundry
+
+    def __init__(self, input_boundry: MetroOptionSelectionInputBoundry) -> None:
+        self._input_boundry = input_boundry
+
+    def optimal_bet_amount(
+        self, low: int, high: int, map_id: int, balance: float
+    ) -> float:
+        """Return the suggested optimal stake for the [low, high] interval."""
+        return self._input_boundry.optimal_bet_amount(low, high, map_id, balance)
+
+    def bet_payout(self, low: int, high: int, map_id: int, stake: float) -> float:
+        """Return the payout on a winning [low, high] bet of <stake>."""
+        return self._input_boundry.bet_payout(low, high, map_id, stake)
+
+    def optimal_betting_range(self, map_id: int) -> tuple[int, int, float]:
+        """Return the globally optimal betting interval and its win probability
+        for map <map_id>."""
+        return self._input_boundry.optimal_betting_range(map_id)
 
     def build_request(
         self,
